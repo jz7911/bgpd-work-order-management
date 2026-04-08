@@ -1,1 +1,1106 @@
-index.html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>BGPD Maintenance System</title>
+<!-- React 18 + ReactDOM (production, no Babel needed) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<!-- htm: JSX-like tagged template literals, no build step -->
+<script src="https://cdn.jsdelivr.net/npm/htm@3.1.1/dist/htm.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f0f2f5;--surface:#fff;--surface2:#f8f9fb;--border:#e2e6ee;--border2:#cdd3df;
+  --blue:#1a6fbb;--blue-light:#e8f1fb;--blue-dark:#145899;
+  --green:#16a34a;--green-light:#dcfce7;--red:#dc2626;--red-light:#fee2e2;
+  --amber:#b45309;--amber-light:#fef3c7;--orange:#c2410c;--orange-light:#ffedd5;
+  --purple:#7c3aed;--purple-light:#ede9fe;--teal:#0d9488;--teal-light:#ccfbf1;
+  --text:#111827;--text2:#374151;--text3:#6b7280;--text4:#9ca3af;
+  --font:'Inter',sans-serif;--mono:'JetBrains Mono',monospace;
+  --radius:10px;--shadow:0 1px 3px rgba(0,0,0,.08);--shadow-md:0 4px 16px rgba(0,0,0,.12);
+}
+body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;line-height:1.5}
+#root{display:flex;min-height:100vh}
+.sidebar{width:230px;min-width:230px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto}
+.sb-logo{padding:20px 18px 16px;border-bottom:1px solid var(--border)}
+.sb-badge{background:var(--blue);color:#fff;font-size:10px;font-weight:700;letter-spacing:1px;padding:3px 8px;border-radius:4px;display:inline-block;margin-bottom:8px}
+.sb-title{font-size:16px;font-weight:700;line-height:1.2}
+.sb-subtitle{font-size:11px;color:var(--text3);margin-top:2px}
+.sb-section{padding:10px 10px 4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--text4)}
+.sb-nav{padding:6px 8px;display:flex;flex-direction:column;gap:1px}
+.sb-item{display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:7px;cursor:pointer;font-size:13.5px;font-weight:500;color:var(--text2);transition:all .15s;border:none;background:none;width:100%;text-align:left}
+.sb-item:hover{background:var(--blue-light);color:var(--blue)}
+.sb-item.active{background:var(--blue-light);color:var(--blue);font-weight:600}
+.sb-cnt{margin-left:auto;background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:20px;min-width:20px;text-align:center}
+.sb-cnt.amb{background:var(--amber)}
+.sb-role{padding:12px;border-top:1px solid var(--border);margin-top:auto}
+.sb-role label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text4);display:block;margin-bottom:5px}
+.sb-role select{width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:7px 10px;border-radius:6px;font-family:var(--font);font-size:12px;cursor:pointer}
+.main{flex:1;display:flex;flex-direction:column;min-width:0}
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 24px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:40;box-shadow:var(--shadow)}
+.page-title{font-size:20px;font-weight:700;flex:1}
+.content{flex:1;padding:22px 24px;overflow-y:auto}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+.grid5{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow)}
+.card-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text3);margin-bottom:12px}
+.mb8{margin-bottom:8px}.mb12{margin-bottom:12px}.mb16{margin-bottom:16px}.mb20{margin-bottom:20px}
+.fw6{font-weight:600}.fw7{font-weight:700}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;cursor:pointer;transition:all .2s;border-left:4px solid transparent}
+.stat:hover{box-shadow:var(--shadow-md);transform:translateY(-1px)}
+.stat.active{box-shadow:0 0 0 2px var(--blue)}
+.stat-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--text3);margin-bottom:6px}
+.stat-num{font-size:30px;font-weight:700;font-family:var(--mono);line-height:1}
+.stat-sub{font-size:11px;color:var(--text4);margin-top:4px}
+.stat.s-open{border-left-color:var(--blue)}.stat.s-open .stat-num{color:var(--blue)}
+.stat.s-assigned{border-left-color:#f59e0b}.stat.s-assigned .stat-num{color:#d97706}
+.stat.s-in_progress{border-left-color:#f97316}.stat.s-in_progress .stat-num{color:var(--orange)}
+.stat.s-review{border-left-color:var(--purple)}.stat.s-review .stat-num{color:var(--purple)}
+.stat.s-closed{border-left-color:var(--green)}.stat.s-closed .stat-num{color:var(--green)}
+.stat.s-overdue .stat-num{color:var(--red)}.stat.s-unassigned .stat-num{color:var(--amber)}
+.stat.s-pm{border-left-color:var(--teal)}.stat.s-pm .stat-num{color:var(--teal)}
+.toolbar{display:flex;gap:8px;margin-bottom:16px;align-items:center;flex-wrap:wrap}
+.search{position:relative;flex:1;min-width:180px;max-width:300px}
+.search svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text4);pointer-events:none}
+.search input{width:100%;padding:8px 12px 8px 34px;border:1px solid var(--border2);border-radius:8px;font-family:var(--font);font-size:13px;background:var(--surface);color:var(--text)}
+.search input:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-light)}
+.fsel{padding:8px 10px;border:1px solid var(--border2);border-radius:8px;font-family:var(--font);font-size:13px;background:var(--surface);color:var(--text);cursor:pointer}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;font-family:var(--font);font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all .15s;white-space:nowrap}
+.btn-primary{background:var(--blue);color:#fff}.btn-primary:hover{background:var(--blue-dark)}
+.btn-secondary{background:var(--surface2);color:var(--text);border:1px solid var(--border2)}.btn-secondary:hover{border-color:var(--blue);color:var(--blue)}
+.btn-danger{background:var(--red-light);color:var(--red);border:1px solid #fca5a5}
+.btn-success{background:var(--green-light);color:var(--green);border:1px solid #86efac}
+.btn-ghost{background:none;color:var(--text3);border:1px solid var(--border)}.btn-ghost:hover{color:var(--text);border-color:var(--border2)}
+.btn-sm{padding:6px 12px;font-size:12px}.btn-xs{padding:4px 9px;font-size:11px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+/* Assignment UI */
+.assign-cell{display:flex;align-items:center;gap:6px;position:relative}
+.assign-pop{position:absolute;top:calc(100% + 4px);left:0;background:var(--surface);border:1px solid var(--border2);border-radius:9px;padding:10px;box-shadow:var(--shadow-md);min-width:210px;z-index:60;display:flex;flex-direction:column;gap:7px}
+.assign-pop select{width:100%;padding:7px 9px;border:1px solid var(--border2);border-radius:6px;font-family:var(--font);font-size:12px;background:var(--surface);color:var(--text)}
+.assign-pop-btns{display:flex;gap:5px}
+.assign-banner{border-radius:10px;padding:16px 20px;margin-bottom:14px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;border:1px solid}
+.assign-banner.unassigned{background:var(--blue-light);border-color:#93c5fd}
+.assign-banner.assigned{background:var(--green-light);border-color:#86efac}
+.ab-icon{font-size:28px;flex-shrink:0}.ab-text{flex:1;min-width:150px}
+.ab-title{font-weight:700;font-size:14px}.ab-sub{font-size:12px;color:var(--text3);margin-top:2px}
+.ab-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.ab-select{padding:8px 11px;border:1px solid var(--border2);border-radius:7px;font-family:var(--font);font-size:13px;color:var(--text);background:#fff;min-width:210px}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:600}
+.bd{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.badge-open{background:var(--blue-light);color:var(--blue)}.badge-open .bd{background:var(--blue)}
+.badge-assigned{background:var(--amber-light);color:var(--amber)}.badge-assigned .bd{background:#f59e0b}
+.badge-in_progress{background:var(--orange-light);color:var(--orange)}.badge-in_progress .bd{background:#f97316}
+.badge-review{background:var(--purple-light);color:var(--purple)}.badge-review .bd{background:var(--purple)}
+.badge-closed{background:var(--green-light);color:var(--green)}.badge-closed .bd{background:var(--green)}
+.type-reactive{background:#f1f5f9;color:#475569;font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;text-transform:uppercase}
+.type-preventive{background:var(--teal-light);color:var(--teal);font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;text-transform:uppercase}
+.type-inspection{background:#e0e7ff;color:#4338ca;font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;text-transform:uppercase}
+.type-emergency{background:var(--red-light);color:var(--red);font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;text-transform:uppercase}
+.prio-low{color:var(--text4);font-size:11px;font-weight:700;text-transform:uppercase}
+.prio-medium{color:var(--blue);font-size:11px;font-weight:700;text-transform:uppercase}
+.prio-high{color:var(--amber);font-size:11px;font-weight:700;text-transform:uppercase}
+.prio-critical{color:var(--red);font-size:12px;font-weight:800;text-transform:uppercase}
+.tbl-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
+.tbl{width:100%;border-collapse:collapse}
+.tbl th{background:var(--surface2);padding:9px 14px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text3);border-bottom:1px solid var(--border)}
+.tbl td{padding:11px 14px;border-bottom:1px solid var(--border);vertical-align:middle}
+.tbl tbody tr:last-child td{border-bottom:none}
+.row-click{cursor:pointer;transition:background .1s}
+.row-click:hover td{background:var(--blue-light)}
+.row-unassigned{background:#fffbeb!important}
+.row-unassigned:hover td{background:#fef3c7!important}
+.row-overdue td{background:#fff5f5}
+.row-overdue:hover td{background:#fee2e2!important}
+.wo-num{font-family:var(--mono);font-size:12px;color:var(--blue);font-weight:500}
+.overlay{position:fixed;inset:0;background:rgba(10,15,28,.6);z-index:200;display:flex;align-items:flex-start;justify-content:center;padding:32px 16px;overflow-y:auto;backdrop-filter:blur(4px)}
+.modal{background:var(--surface);border-radius:14px;width:100%;box-shadow:0 24px 64px rgba(0,0,0,.22);margin:auto}
+.modal-md{max-width:660px}.modal-lg{max-width:800px}
+.mhdr{padding:22px 26px 18px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.mhdr h2{font-size:18px;font-weight:700}
+.mhdr p{font-size:12px;color:var(--text3);margin-top:3px}
+.mbody{padding:22px 26px}
+.mftr{padding:16px 26px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;background:var(--surface2);border-radius:0 0 14px 14px}
+.xbtn{background:none;border:none;width:30px;height:30px;border-radius:7px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:18px;flex-shrink:0}
+.xbtn:hover{background:var(--border);color:var(--text)}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.ffull{grid-column:1/-1}
+.fg{display:flex;flex-direction:column;gap:4px}
+.flabel{font-size:12px;font-weight:600;color:var(--text2)}
+.req{color:var(--red)}
+.finput,.fsel2,.ftextarea{width:100%;padding:8px 11px;border:1px solid var(--border2);border-radius:7px;font-family:var(--font);font-size:13px;color:var(--text);background:#fff;transition:border .15s}
+.finput:focus,.fsel2:focus,.ftextarea:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-light)}
+.ftextarea{resize:vertical;min-height:80px;line-height:1.6}
+.fhint{font-size:11px;color:var(--text4)}
+.fdivider{grid-column:1/-1;border:none;border-top:1px solid var(--border);margin:6px 0}
+.upload-zone{border:2px dashed var(--border2);border-radius:8px;padding:16px;text-align:center;cursor:pointer;background:var(--surface2);transition:all .2s}
+.upload-zone:hover{border-color:var(--blue);background:var(--blue-light)}
+.upload-zone p{font-size:12px;color:var(--text3);margin-top:4px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.chip{background:var(--blue-light);border:1px solid #bfdbfe;border-radius:20px;padding:3px 10px;font-size:11px;color:var(--blue);display:flex;align-items:center;gap:5px}
+.chip button{background:none;border:none;cursor:pointer;color:var(--blue);font-size:13px;line-height:1}
+.detail-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:22px;margin-bottom:14px;box-shadow:var(--shadow)}
+.meta-row{display:flex;gap:24px;flex-wrap:wrap}
+.meta-item{display:flex;flex-direction:column;gap:2px;min-width:90px}
+.mlabel{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text4)}
+.mvalue{font-size:13px;font-weight:500}
+.sec-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text3);margin-bottom:10px}
+.flow{display:flex;align-items:center;flex-wrap:wrap;gap:4px}
+.flow-step{padding:7px 14px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;border:2px solid transparent}
+.flow-step.done{background:var(--green-light);color:var(--green);border-color:var(--green)}
+.flow-step.current{background:var(--blue-light);color:var(--blue);border-color:var(--blue)}
+.flow-step.todo{background:var(--surface2);color:var(--text3);border-color:var(--border2)}
+.flow-step.todo:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-light)}
+.flow-arrow{color:var(--text4);font-size:14px}
+.tl-item{display:flex;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)}
+.tl-item:last-child{border-bottom:none}
+.tl-dot{width:8px;height:8px;border-radius:50%;background:var(--blue);flex-shrink:0;margin-top:5px}
+.tl-dot.comment{background:var(--purple)}.tl-dot.status{background:var(--teal)}
+.tl-body{flex:1;font-size:13px;color:var(--text2)}
+.tl-time{font-size:11px;color:var(--text4);margin-top:2px}
+.ci-item{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}
+.ci-item:last-child{border-bottom:none}
+.ci-label{flex:1;font-size:13px;color:var(--text2)}
+.ci-btns{display:flex;gap:6px;flex-shrink:0}
+.pm-card{display:flex;align-items:center;gap:12px;padding:14px;border-bottom:1px solid var(--border)}
+.pm-card:last-child{border-bottom:none}
+.pm-icon{width:36px;height:36px;border-radius:8px;background:var(--teal-light);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.pm-info{flex:1;min-width:0}
+.pm-title{font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pm-meta{font-size:11px;color:var(--text3);margin-top:2px}
+.pm-due{font-size:12px;font-weight:600;flex-shrink:0;text-align:right}
+.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;text-align:center}
+.kpi-val{font-size:28px;font-weight:700;font-family:var(--mono)}
+.kpi-label{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;margin-top:4px}
+.bar-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.bar-label{font-size:12px;color:var(--text2);min-width:140px}
+.bar-track{flex:1;background:var(--surface2);border-radius:4px;height:10px;overflow:hidden}
+.bar-fill{height:100%;border-radius:4px;transition:width .5s}
+.bar-count{font-size:12px;color:var(--text3);min-width:24px;text-align:right}
+.alert{padding:12px 14px;border-radius:8px;font-size:13px;margin-bottom:14px;display:flex;gap:8px;align-items:flex-start}
+.alert-warn{background:var(--amber-light);color:var(--amber);border:1px solid #fde68a}
+.alert-info{background:var(--blue-light);color:var(--blue-dark);border:1px solid #bfdbfe}
+.alert-danger{background:var(--red-light);color:var(--red);border:1px solid #fca5a5}
+.alert-success{background:var(--green-light);color:var(--green);border:1px solid #86efac}
+.empty{text-align:center;padding:48px 20px;color:var(--text3)}
+.empty .ei{font-size:40px;margin-bottom:10px}
+.loading-screen{display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:12px}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="module">
+const html = htm.bind(React.createElement);
+const {useState, useEffect, useCallback, useRef} = React;
+
+const SB = 'https://tfkfxslwiwzzjhtqrkuz.supabase.co';
+const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRma2Z4c2x3aXd6empodHFya3V6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMyNTQxMDAsImV4cCI6MjA4ODgzMDEwMH0.pePlnUtgrJPkJqMqGSZkRSflTx2p-bmHGA3xR04LutY';
+
+async function sb(path, opts = {}) {
+  const r = await fetch(`${SB}/rest/v1/${path}`, {
+    headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json', 'Prefer': opts.prefer || 'return=representation', ...(opts.headers || {}) },
+    ...opts
+  });
+  if (!r.ok) { const e = await r.text(); throw new Error(e); }
+  const t = await r.text(); return t ? JSON.parse(t) : null;
+}
+
+const STATUSES = ['open','assigned','in_progress','review','closed'];
+const SL = {open:'Open',assigned:'Assigned',in_progress:'In Progress',review:'Review',closed:'Closed'};
+const PL = {low:'Low',medium:'Medium',high:'High',critical:'Critical'};
+const TL = {reactive:'Reactive',preventive:'Preventive',inspection:'Inspection',emergency:'Emergency'};
+const FREQ = {daily:'Daily',weekly:'Weekly',monthly:'Monthly',quarterly:'Quarterly',semi_annual:'Semi-Annual',annual:'Annual'};
+const fmt = (d, o = {month:'short',day:'numeric',year:'numeric'}) => d ? new Date(d).toLocaleDateString('en-US', o) : '—';
+const fmtDt = d => d ? new Date(d).toLocaleDateString('en-US', {month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}) : '—';
+const isOverdue = i => i.due_date && new Date(i.due_date) < new Date() && i.status !== 'closed';
+const daysUntil = d => { if (!d) return null; return Math.ceil((new Date(d) - new Date()) / 864e5); };
+
+function StatusBadge({s}) { return html`<span class=${`badge badge-${s}`}><span class="bd"/>${SL[s]||s}</span>`; }
+function PrioBadge({p}) { return html`<span class=${`prio-${p}`}>${PL[p]||p}</span>`; }
+function TypeBadge({t}) { return html`<span class=${`type-${t}`}>${TL[t]||t}</span>`; }
+function Modal({onClose, size='modal-md', children}) {
+  return html`<div class="overlay" onClick=${e => e.target === e.currentTarget && onClose()}>
+    <div class=${`modal ${size}`}>${children}</div>
+  </div>`;
+}
+
+// ── INLINE ASSIGN ──
+function InlineAssign({issue, staff, role, onDone}) {
+  const [open, setOpen] = useState(false);
+  const [sel, setSel] = useState(issue.assigned_to || '');
+  const [saving, setSaving] = useState(false);
+  const ref = useRef(null);
+  const canAssign = role === 'supervisor' || role === 'admin';
+
+  useEffect(() => {
+    const h = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
+
+  if (!canAssign) {
+    const tech = staff.find(s => s.id === issue.assigned_to);
+    return html`<span style=${{fontSize:'12px',color:tech?'var(--text2)':'var(--text4)'}}>${tech ? tech.name : '—'}</span>`;
+  }
+
+  const tech = staff.find(s => s.id === issue.assigned_to);
+
+  const confirm = async e => {
+    e.stopPropagation();
+    if (!sel) return;
+    setSaving(true);
+    const name = staff.find(s => s.id === sel)?.name || '';
+    await sb(`issues?id=eq.${issue.id}`, {method:'PATCH', body:JSON.stringify({assigned_to:sel, status:'assigned'}), prefer:'return=minimal'});
+    await sb('issue_history', {method:'POST', body:JSON.stringify({issue_id:issue.id, changed_by:role, old_status:issue.status, new_status:'assigned', note:`Assigned to ${name}`}), prefer:'return=minimal'});
+    setSaving(false); setOpen(false); onDone();
+  };
+
+  return html`<div ref=${ref} class="assign-cell" onClick=${e => e.stopPropagation()}>
+    ${!open ? html`
+      ${tech ? html`
+        <span style=${{fontSize:'12px',fontWeight:500,color:'var(--text2)'}}>${tech.name}</span>
+        <button class="btn btn-xs btn-ghost" title="Reassign" onClick=${e=>{e.stopPropagation();setSel(issue.assigned_to||'');setOpen(true);}}>↺</button>
+      ` : html`
+        <button class="btn btn-xs btn-primary" onClick=${e=>{e.stopPropagation();setSel('');setOpen(true);}}>+ Assign</button>
+      `}
+    ` : html`
+      <div class="assign-pop">
+        <div style=${{fontSize:'11px',fontWeight:700,color:'var(--text3)',marginBottom:'2px'}}>${tech ? 'Reassign to:' : 'Assign to:'}</div>
+        <select class="fsel2" style=${{fontSize:'12px',padding:'6px 9px'}} value=${sel} onChange=${e=>setSel(e.target.value)}>
+          <option value="">Select staff…</option>
+          ${staff.filter(s=>s.role==='technician'||s.role==='supervisor').map(s => html`<option key=${s.id} value=${s.id}>${s.name} — ${s.role}</option>`)}
+        </select>
+        <div class="assign-pop-btns">
+          <button class="btn btn-primary btn-xs" style=${{flex:1}} onClick=${confirm} disabled=${!sel||saving}>${saving ? '…' : '✓ Confirm'}</button>
+          <button class="btn btn-ghost btn-xs" onClick=${e=>{e.stopPropagation();setOpen(false);}}>✕</button>
+        </div>
+      </div>
+    `}
+  </div>`;
+}
+
+// ── ASSIGNMENT BANNER ──
+function AssignBanner({issue, staff, role, onUpdate}) {
+  const [mode, setMode] = useState('view');
+  const [sel, setSel] = useState(issue.assigned_to || '');
+  const [saving, setSaving] = useState(false);
+  const tech = staff.find(s => s.id === issue.assigned_to);
+  const canAssign = role === 'supervisor' || role === 'admin';
+
+  const doAssign = async () => {
+    if (!sel) return;
+    setSaving(true);
+    const name = staff.find(s => s.id === sel)?.name || '';
+    await sb(`issues?id=eq.${issue.id}`, {method:'PATCH', body:JSON.stringify({assigned_to:sel, status:'assigned'}), prefer:'return=minimal'});
+    await sb('issue_history', {method:'POST', body:JSON.stringify({issue_id:issue.id, changed_by:role, old_status:issue.status, new_status:'assigned', note:`Assigned to ${name}`}), prefer:'return=minimal'});
+    setSaving(false); setMode('view'); onUpdate(true);
+  };
+
+  if (mode === 'assign') return html`
+    <div class="assign-banner unassigned">
+      <div class="ab-icon">👤</div>
+      <div class="ab-text">
+        <div class="ab-title">${tech ? `Reassign — currently: ${tech.name}` : 'Assign this issue to a staff member'}</div>
+        <div class="ab-sub">Status will move to Assigned automatically.</div>
+      </div>
+      <div class="ab-controls">
+        <select class="ab-select" value=${sel} onChange=${e=>setSel(e.target.value)}>
+          <option value="">Select staff member…</option>
+          ${staff.filter(s=>s.role==='technician'||s.role==='supervisor').map(s=>html`<option key=${s.id} value=${s.id}>${s.name} — ${s.role}</option>`)}
+        </select>
+        <button class="btn btn-primary btn-sm" onClick=${doAssign} disabled=${!sel||saving}>${saving?'Saving…':'✓ Confirm Assignment'}</button>
+        <button class="btn btn-ghost btn-sm" onClick=${()=>setMode('view')}>Cancel</button>
+      </div>
+    </div>`;
+
+  return html`
+    <div class=${`assign-banner ${tech?'assigned':'unassigned'}`}>
+      <div class="ab-icon">${tech ? '✅' : '👤'}</div>
+      <div class="ab-text">
+        <div class="ab-title">${tech ? `Assigned to ${tech.name}` : 'Not yet assigned'}</div>
+        <div class="ab-sub">${tech ? `${tech.role} · Status: ${SL[issue.status]}` : 'Assign this issue to get it moving.'}</div>
+      </div>
+      ${canAssign && issue.status !== 'closed' && html`
+        <button class=${`btn btn-sm ${tech?'btn-secondary':'btn-primary'}`} onClick=${()=>{setSel(issue.assigned_to||'');setMode('assign');}}>
+          ${tech ? '↺ Reassign' : '+ Assign to Staff'}
+        </button>`}
+    </div>`;
+}
+
+// ── ADD ISSUE MODAL ──
+function AddIssueModal({assets, categories, onSave, onClose}) {
+  const [form, setForm] = useState({wo_type:'reactive',asset_id:'',category_id:'',summary:'',description:'',exact_location:'',due_date:'',priority:'medium',submitted_by:''});
+  const [files, setFiles] = useState([]);
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState('');
+  const set = (k,v) => setForm(f => ({...f,[k]:v}));
+  const parks = assets.filter(a=>a.type==='park'), facs = assets.filter(a=>a.type==='facility'), other = assets.filter(a=>a.type!=='park'&&a.type!=='facility');
+
+  const submit = async () => {
+    if (!form.asset_id) { setErr('Please select a park or facility.'); return; }
+    if (!form.summary.trim()) { setErr('Please enter a summary.'); return; }
+    if (!form.submitted_by.trim()) { setErr('Please enter your name.'); return; }
+    setSaving(true); setErr('');
+    try {
+      const p = {...form};
+      if (!p.category_id) delete p.category_id;
+      if (!p.due_date) delete p.due_date;
+      const [issue] = await sb('issues', {method:'POST', body:JSON.stringify(p)});
+      await sb('issue_history', {method:'POST', body:JSON.stringify({issue_id:issue.id, changed_by:form.submitted_by, new_status:'open', note:'Issue submitted'}), prefer:'return=minimal'});
+      onSave();
+    } catch(e) { setErr('Error: '+e.message); }
+    setSaving(false);
+  };
+
+  return html`<${Modal} onClose=${onClose} size="modal-lg">
+    <div class="mhdr">
+      <div><h2>Report a Maintenance Issue</h2><p>Fields marked * are required.</p></div>
+      <button class="xbtn" onClick=${onClose}>×</button>
+    </div>
+    <div class="mbody">
+      ${err && html`<div class="alert alert-warn">⚠ ${err}</div>`}
+      <div class="fgrid">
+        <div class="fg ffull">
+          <label class="flabel">Issue Type</label>
+          <div style=${{display:'flex',gap:'8px',flexWrap:'wrap'}}>
+            ${[['reactive','🔧'],['preventive','📅'],['inspection','✅'],['emergency','🚨']].map(([k,ico]) => html`
+              <button key=${k} class=${`btn btn-sm ${form.wo_type===k?'btn-primary':'btn-secondary'}`} onClick=${()=>set('wo_type',k)}>${ico} ${TL[k]}</button>`)}
+          </div>
+        </div>
+        <div class="fg ffull">
+          <label class="flabel">Asset <span class="req">*</span></label>
+          <select class="fsel2" value=${form.asset_id} onChange=${e=>set('asset_id',e.target.value)}>
+            <option value="">Select a park or facility…</option>
+            ${parks.length>0 && html`<optgroup label="── Parks">${parks.map(a=>html`<option key=${a.id} value=${a.id}>${a.name}</option>`)}</optgroup>`}
+            ${facs.length>0 && html`<optgroup label="── Facilities">${facs.map(a=>html`<option key=${a.id} value=${a.id}>${a.name}</option>`)}</optgroup>`}
+            ${other.length>0 && html`<optgroup label="── Other">${other.map(a=>html`<option key=${a.id} value=${a.id}>${a.name} (${a.type})</option>`)}</optgroup>`}
+          </select>
+          <span class="fhint">If same name appears as park and facility, choose carefully.</span>
+        </div>
+        <div class="fg ffull"><label class="flabel">Summary <span class="req">*</span></label><input class="finput" placeholder="Brief description…" value=${form.summary} onInput=${e=>set('summary',e.target.value)} maxlength="120"/></div>
+        <div class="fg ffull"><label class="flabel">Detailed Description</label><textarea class="ftextarea" rows="4" placeholder="Include needed-by date, full context, safety concerns…" value=${form.description} onInput=${e=>set('description',e.target.value)}></textarea></div>
+        <div class="fg ffull"><label class="flabel">Exact Location</label><input class="finput" placeholder="e.g. North restroom, Playground near parking lot…" value=${form.exact_location} onInput=${e=>set('exact_location',e.target.value)}/></div>
+        <div class="fg"><label class="flabel">Due Date</label><input type="date" class="finput" value=${form.due_date} onChange=${e=>set('due_date',e.target.value)}/></div>
+        <div class="fg">
+          <label class="flabel">Category</label>
+          <select class="fsel2" value=${form.category_id} onChange=${e=>set('category_id',e.target.value)}>
+            <option value="">Select category…</option>
+            ${categories.map(c=>html`<option key=${c.id} value=${c.id}>${c.name}${c.assigned_crew?' → '+c.assigned_crew:''}</option>`)}
+          </select>
+        </div>
+        <div class="fg">
+          <label class="flabel">Priority</label>
+          <select class="fsel2" value=${form.priority} onChange=${e=>set('priority',e.target.value)}>
+            <option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="critical">Critical / Safety Hazard 🚨</option>
+          </select>
+        </div>
+        <div class="fg"><label class="flabel">Submitted By <span class="req">*</span></label><input class="finput" placeholder="Your name…" value=${form.submitted_by} onInput=${e=>set('submitted_by',e.target.value)}/></div>
+        <hr class="fdivider"/>
+        <div class="fg ffull">
+          <label class="flabel">📷 Photos</label>
+          <div class="upload-zone" onClick=${()=>document.getElementById('pu').click()}>
+            <div style=${{fontSize:'28px'}}>📷</div><p>Click to attach photos — include close-up and wide shots</p>
+          </div>
+          <input id="pu" type="file" accept="image/*" multiple style=${{display:'none'}} onChange=${e=>setFiles(f=>[...f,...Array.from(e.target.files).map(x=>({name:x.name,type:'photo'}))])}/>
+          ${files.filter(f=>f.type==='photo').length>0 && html`<div class="chips">${files.filter(f=>f.type==='photo').map((f,i)=>html`<span key=${i} class="chip">📷 ${f.name}<button onClick=${()=>setFiles(p=>p.filter((_,j)=>j!==i))}>×</button></span>`)}</div>`}
+        </div>
+        <div class="fg ffull">
+          <label class="flabel">📎 Documents</label>
+          <div class="upload-zone" onClick=${()=>document.getElementById('du').click()}>
+            <div style=${{fontSize:'28px'}}>📎</div><p>Attach documents — event layouts, equipment lists, schedules…</p>
+          </div>
+          <input id="du" type="file" multiple style=${{display:'none'}} onChange=${e=>setFiles(f=>[...f,...Array.from(e.target.files).map(x=>({name:x.name,type:'doc'}))])}/>
+          ${files.filter(f=>f.type==='doc').length>0 && html`<div class="chips">${files.filter(f=>f.type==='doc').map((f,i)=>html`<span key=${i} class="chip">📎 ${f.name}<button onClick=${()=>setFiles(p=>p.filter((_,j)=>j!==i))}>×</button></span>`)}</div>`}
+        </div>
+      </div>
+    </div>
+    <div class="mftr">
+      <button class="btn btn-ghost btn-sm" onClick=${onClose}>Cancel</button>
+      <button class="btn btn-primary btn-sm" onClick=${submit} disabled=${saving}>${saving?'Saving…':'💾 Save Issue'}</button>
+    </div>
+  <//>`;
+}
+
+// ── ISSUE DETAIL ──
+function IssueDetail({issue, assets, categories, staff, role, onBack, onUpdate}) {
+  const [history, setHistory] = useState([]);
+  const [comments, setComments] = useState([]);
+  const [parts, setParts] = useState([]);
+  const [note, setNote] = useState('');
+  const [comment, setComment] = useState('');
+  const [commenter, setCommenter] = useState('');
+  const [showLabor, setShowLabor] = useState(false);
+  const [labor, setLabor] = useState({hours:'',cost:'',note:''});
+  const [showPart, setShowPart] = useState(false);
+  const [part, setPart] = useState({name:'',number:'',qty:1,cost:''});
+  const [tab, setTab] = useState('details');
+
+  useEffect(() => {
+    Promise.all([
+      sb(`issue_history?issue_id=eq.${issue.id}&order=created_at.desc`),
+      sb(`issue_comments?issue_id=eq.${issue.id}&order=created_at.asc`),
+      sb(`issue_parts?issue_id=eq.${issue.id}&order=created_at.asc`),
+    ]).then(([h,c,p]) => { setHistory(h||[]); setComments(c||[]); setParts(p||[]); });
+  }, [issue.id]);
+
+  const asset = assets.find(a=>a.id===issue.asset_id);
+  const cat = categories.find(c=>c.id===issue.category_id);
+  const idx = STATUSES.indexOf(issue.status);
+  const canEdit = role==='supervisor'||role==='admin'||role==='technician';
+  const totalCost = (parseFloat(issue.labor_cost)||0) + (parseFloat(issue.total_parts_cost)||0);
+
+  const moveStatus = async ns => {
+    await sb(`issues?id=eq.${issue.id}`, {method:'PATCH', body:JSON.stringify({status:ns,...(ns==='closed'?{closed_at:new Date().toISOString()}:{})}), prefer:'return=minimal'});
+    await sb('issue_history', {method:'POST', body:JSON.stringify({issue_id:issue.id, changed_by:role, old_status:issue.status, new_status:ns, note:note||null}), prefer:'return=minimal'});
+    setNote(''); onUpdate(true);
+  };
+
+  const addComment = async () => {
+    if (!comment.trim() || !commenter.trim()) return;
+    await sb('issue_comments', {method:'POST', body:JSON.stringify({issue_id:issue.id, author:commenter, body:comment}), prefer:'return=minimal'});
+    setComment('');
+    const c = await sb(`issue_comments?issue_id=eq.${issue.id}&order=created_at.asc`); setComments(c||[]);
+  };
+
+  const addLabor = async () => {
+    const h=parseFloat(labor.hours)||0, lc=parseFloat(labor.cost)||0;
+    await sb(`issues?id=eq.${issue.id}`, {method:'PATCH', body:JSON.stringify({labor_hours:(parseFloat(issue.labor_hours)||0)+h, labor_cost:(parseFloat(issue.labor_cost)||0)+lc}), prefer:'return=minimal'});
+    if(labor.note) await sb('issue_history', {method:'POST', body:JSON.stringify({issue_id:issue.id, changed_by:role, note:`Labor: ${h}h $${lc} — ${labor.note}`}), prefer:'return=minimal'});
+    setLabor({hours:'',cost:'',note:''}); setShowLabor(false); onUpdate(true);
+  };
+
+  const addPart = async () => {
+    if (!part.name.trim()) return;
+    const uc=parseFloat(part.cost)||0, qty=parseFloat(part.qty)||1;
+    await sb('issue_parts', {method:'POST', body:JSON.stringify({issue_id:issue.id, part_name:part.name, part_number:part.number||null, quantity:qty, unit_cost:uc}), prefer:'return=minimal'});
+    await sb(`issues?id=eq.${issue.id}`, {method:'PATCH', body:JSON.stringify({total_parts_cost:(parseFloat(issue.total_parts_cost)||0)+(uc*qty)}), prefer:'return=minimal'});
+    const p2 = await sb(`issue_parts?issue_id=eq.${issue.id}&order=created_at.asc`); setParts(p2||[]);
+    setPart({name:'',number:'',qty:1,cost:''}); setShowPart(false); onUpdate(true);
+  };
+
+  return html`<div>
+    <div class="mb16"><button class="btn btn-ghost btn-sm" onClick=${onBack}>← Back to Issues</button></div>
+    <${AssignBanner} issue=${issue} staff=${staff} role=${role} onUpdate=${onUpdate}/>
+    <div class="detail-card">
+      <div style=${{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:'12px',marginBottom:'14px'}}>
+        <div style=${{flex:1}}>
+          <div style=${{display:'flex',alignItems:'center',gap:'8px',marginBottom:'4px',flexWrap:'wrap'}}>
+            <span class="wo-num">Issue #${issue.issue_number}</span>
+            <${TypeBadge} t=${issue.wo_type}/>
+            ${isOverdue(issue) && html`<span style=${{background:'var(--red-light)',color:'var(--red)',fontSize:'10px',fontWeight:700,padding:'2px 7px',borderRadius:'4px'}}>⚠ OVERDUE</span>`}
+          </div>
+          <div style=${{fontSize:'20px',fontWeight:700,lineHeight:1.2,marginBottom:'4px'}}>${issue.summary}</div>
+          ${issue.exact_location && html`<div style=${{fontSize:'13px',color:'var(--text3)'}}>📍 ${issue.exact_location}</div>`}
+        </div>
+        <div style=${{display:'flex',flexDirection:'column',gap:'6px',alignItems:'flex-end',flexShrink:0}}>
+          <${StatusBadge} s=${issue.status}/><${PrioBadge} p=${issue.priority}/>
+        </div>
+      </div>
+      <div class="meta-row">
+        <div class="meta-item"><span class="mlabel">Asset</span><span class="mvalue">${asset?.name||'—'}</span></div>
+        <div class="meta-item"><span class="mlabel">Category</span><span class="mvalue">${cat?.name||'—'}</span></div>
+        <div class="meta-item"><span class="mlabel">Due Date</span><span class="mvalue" style=${isOverdue(issue)?{color:'var(--red)',fontWeight:700}:{}}>${fmt(issue.due_date)}</span></div>
+        <div class="meta-item"><span class="mlabel">Submitted By</span><span class="mvalue">${issue.submitted_by}</span></div>
+        <div class="meta-item"><span class="mlabel">Date</span><span class="mvalue">${fmt(issue.created_at)}</span></div>
+        <div class="meta-item"><span class="mlabel">Total Cost</span><span class="mvalue fw7" style=${{color:'var(--green)'}}>\$${totalCost.toFixed(2)}</span></div>
+      </div>
+    </div>
+    <div class="detail-card">
+      <div class="sec-title">Status Workflow</div>
+      <div class="flow mb12">
+        ${STATUSES.map((s,i) => html`
+          <div key=${s} class=${`flow-step ${i<idx?'done':i===idx?'current':'todo'}`} onClick=${()=>canEdit&&i===idx+1&&moveStatus(s)}>${i<idx?'✓ ':''}${SL[s]}</div>
+          ${i<STATUSES.length-1 && html`<span class="flow-arrow">›</span>`}
+        `)}
+      </div>
+      ${canEdit && issue.status!=='closed' && html`
+        <div style=${{display:'flex',gap:'8px',flexWrap:'wrap',alignItems:'flex-end'}}>
+          <div class="fg" style=${{flex:1,minWidth:'180px'}}>
+            <label class="flabel" style=${{fontSize:'11px'}}>Note (optional)</label>
+            <input class="finput" style=${{fontSize:'12px'}} placeholder="Add a note…" value=${note} onInput=${e=>setNote(e.target.value)}/>
+          </div>
+          ${idx<STATUSES.length-1 && html`<button class="btn btn-primary btn-sm" onClick=${()=>moveStatus(STATUSES[idx+1])}>Move → ${SL[STATUSES[idx+1]]}</button>`}
+          ${idx>0 && html`<button class="btn btn-ghost btn-sm" onClick=${()=>moveStatus(STATUSES[idx-1])}>← Back to ${SL[STATUSES[idx-1]]}</button>`}
+          <button class="btn btn-success btn-sm" onClick=${()=>moveStatus('closed')}>✓ Close Issue</button>
+        </div>`}
+    </div>
+    <div style=${{display:'flex',gap:'4px',marginBottom:'12px'}}>
+      ${[['details','📋 Details'],['labor',`💰 Labor & Parts (\$${totalCost.toFixed(0)})`],['history','🕐 History']].map(([t,label])=>html`
+        <button key=${t} class=${`btn btn-sm ${tab===t?'btn-primary':'btn-secondary'}`} onClick=${()=>setTab(t)}>${label}</button>`)}
+    </div>
+    ${tab==='details' && html`
+      <div>
+        ${(issue.description||issue.exact_location) && html`
+          <div class="detail-card">
+            <div class="sec-title">Description</div>
+            ${issue.exact_location && html`<p style=${{fontSize:'13px',marginBottom:'8px'}}><strong>Exact Location:</strong> ${issue.exact_location}</p>`}
+            ${issue.description && html`<p style=${{fontSize:'13px',lineHeight:1.7,color:'var(--text2)',whiteSpace:'pre-wrap'}}>${issue.description}</p>`}
+          </div>`}
+        <div class="detail-card">
+          <div class="sec-title">Field Notes & Comments (${comments.length})</div>
+          ${comments.length===0 && html`<p style=${{fontSize:'13px',color:'var(--text4)',marginBottom:'12px'}}>No comments yet.</p>`}
+          <div>${comments.map(c=>html`
+            <div key=${c.id} class="tl-item"><div class="tl-dot comment"/><div class="tl-body"><strong>${c.author}:</strong> ${c.body}<div class="tl-time">${fmtDt(c.created_at)}</div></div></div>`)}</div>
+          <div style=${{display:'flex',gap:'8px',marginTop:'12px',flexWrap:'wrap'}}>
+            <input class="finput" style=${{flex:1,minWidth:'120px',fontSize:'12px'}} placeholder="Your name…" value=${commenter} onInput=${e=>setCommenter(e.target.value)}/>
+            <input class="finput" style=${{flex:3,minWidth:'180px',fontSize:'12px'}} placeholder="Add a field note or comment…" value=${comment} onInput=${e=>setComment(e.target.value)} onKeyDown=${e=>e.key==='Enter'&&addComment()}/>
+            <button class="btn btn-primary btn-xs" onClick=${addComment}>Post</button>
+          </div>
+        </div>
+      </div>`}
+    ${tab==='labor' && html`
+      <div class="detail-card">
+        <div style=${{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'14px'}}>
+          <div class="sec-title" style=${{margin:0}}>Labor & Parts Costs</div>
+          <div style=${{display:'flex',gap:'6px'}}>
+            <button class="btn btn-secondary btn-xs" onClick=${()=>setShowLabor(v=>!v)}>+ Log Labor</button>
+            <button class="btn btn-secondary btn-xs" onClick=${()=>setShowPart(v=>!v)}>+ Add Part</button>
+          </div>
+        </div>
+        ${showLabor && html`
+          <div style=${{background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:'8px',padding:'14px',marginBottom:'14px'}}>
+            <div class="fgrid mb12">
+              <div class="fg"><label class="flabel">Hours</label><input type="number" class="finput" placeholder="0.0" value=${labor.hours} onInput=${e=>setLabor(l=>({...l,hours:e.target.value}))}/></div>
+              <div class="fg"><label class="flabel">Labor Cost (\$)</label><input type="number" class="finput" placeholder="0.00" value=${labor.cost} onInput=${e=>setLabor(l=>({...l,cost:e.target.value}))}/></div>
+              <div class="fg ffull"><label class="flabel">Note</label><input class="finput" placeholder="What was done…" value=${labor.note} onInput=${e=>setLabor(l=>({...l,note:e.target.value}))}/></div>
+            </div>
+            <div style=${{display:'flex',gap:'8px'}}>
+              <button class="btn btn-primary btn-xs" onClick=${addLabor}>Save Labor</button>
+              <button class="btn btn-ghost btn-xs" onClick=${()=>setShowLabor(false)}>Cancel</button>
+            </div>
+          </div>`}
+        ${showPart && html`
+          <div style=${{background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:'8px',padding:'14px',marginBottom:'14px'}}>
+            <div class="fgrid mb12">
+              <div class="fg"><label class="flabel">Part Name <span class="req">*</span></label><input class="finput" value=${part.name} onInput=${e=>setPart(p=>({...p,name:e.target.value}))} placeholder="e.g. Swing chain…"/></div>
+              <div class="fg"><label class="flabel">Part #</label><input class="finput" value=${part.number} onInput=${e=>setPart(p=>({...p,number:e.target.value}))} placeholder="SKU…"/></div>
+              <div class="fg"><label class="flabel">Qty</label><input type="number" class="finput" value=${part.qty} min="1" onInput=${e=>setPart(p=>({...p,qty:e.target.value}))}/></div>
+              <div class="fg"><label class="flabel">Unit Cost (\$)</label><input type="number" class="finput" value=${part.cost} onInput=${e=>setPart(p=>({...p,cost:e.target.value}))}/></div>
+            </div>
+            <div style=${{display:'flex',gap:'8px'}}>
+              <button class="btn btn-primary btn-xs" onClick=${addPart}>Save Part</button>
+              <button class="btn btn-ghost btn-xs" onClick=${()=>setShowPart(false)}>Cancel</button>
+            </div>
+          </div>`}
+        <div style=${{display:'flex',gap:'20px',marginBottom:'14px',padding:'12px 0',borderBottom:'1px solid var(--border)'}}>
+          <div><div class="mlabel">Labor Hours</div><div class="mvalue">${(parseFloat(issue.labor_hours)||0).toFixed(1)} hrs</div></div>
+          <div><div class="mlabel">Labor Cost</div><div class="mvalue">\$${(parseFloat(issue.labor_cost)||0).toFixed(2)}</div></div>
+          <div><div class="mlabel">Parts Cost</div><div class="mvalue">\$${(parseFloat(issue.total_parts_cost)||0).toFixed(2)}</div></div>
+          <div><div class="mlabel">Total</div><div class="mvalue fw7" style=${{color:'var(--green)'}}>\$${totalCost.toFixed(2)}</div></div>
+        </div>
+        ${parts.length>0 && html`
+          <div class="sec-title">Parts Used</div>
+          <table class="tbl"><thead><tr><th>Part</th><th>Part #</th><th>Qty</th><th>Unit \$</th><th>Total</th></tr></thead>
+          <tbody>${parts.map(p=>html`<tr key=${p.id}><td style=${{fontWeight:500}}>${p.part_name}</td><td style=${{color:'var(--text3)',fontFamily:'var(--mono)',fontSize:'11px'}}>${p.part_number||'—'}</td><td>${p.quantity}</td><td>\$${(parseFloat(p.unit_cost)||0).toFixed(2)}</td><td style=${{fontWeight:600}}>\$${((parseFloat(p.unit_cost)||0)*(parseFloat(p.quantity)||1)).toFixed(2)}</td></tr>`)}</tbody></table>`}
+        ${parts.length===0 && html`<div style=${{color:'var(--text4)',fontSize:'13px'}}>No parts logged yet.</div>`}
+      </div>`}
+    ${tab==='history' && html`
+      <div class="detail-card">
+        <div class="sec-title">Activity Log</div>
+        ${history.length===0 && html`<p style=${{fontSize:'13px',color:'var(--text4)'}}>No activity yet.</p>`}
+        ${history.map(h=>html`
+          <div key=${h.id} class="tl-item"><div class="tl-dot status"/>
+            <div class="tl-body">
+              ${h.new_status&&h.old_status ? html`<span><strong>Status:</strong> ${SL[h.old_status]||h.old_status} → ${SL[h.new_status]||h.new_status}${h.note?' — '+h.note:''}</span>` : h.note||'Update'}
+              <div class="tl-time">${fmtDt(h.created_at)}${h.changed_by?' · '+h.changed_by:''}</div>
+            </div>
+          </div>`)}
+      </div>`}
+  </div>`;
+}
+
+// ── ISSUES LIST ──
+function IssuesList({issues, assets, categories, staff, role, onSelect, onNew, onRefresh}) {
+  const [statusF, setStatusF] = useState('all');
+  const [prioF, setPrioF] = useState('all');
+  const [typeF, setTypeF] = useState('all');
+  const [search, setSearch] = useState('');
+
+  const counts = STATUSES.reduce((a,s) => { a[s]=issues.filter(i=>i.status===s).length; return a; }, {});
+  const overdueCount = issues.filter(i=>isOverdue(i)).length;
+  const unassignedOpen = issues.filter(i=>i.status==='open'&&!i.assigned_to).length;
+  const canAssign = role==='supervisor'||role==='admin';
+
+  const filtered = issues.filter(i => {
+    if (statusF!=='all'&&i.status!==statusF) return false;
+    if (prioF!=='all'&&i.priority!==prioF) return false;
+    if (typeF!=='all'&&i.wo_type!==typeF) return false;
+    if (search) { const q=search.toLowerCase(); const a=assets.find(x=>x.id===i.asset_id); return String(i.issue_number).includes(q)||i.summary.toLowerCase().includes(q)||(a?.name.toLowerCase().includes(q))||(i.submitted_by?.toLowerCase().includes(q)); }
+    return true;
+  });
+
+  return html`<div>
+    <div class="grid5 mb16">
+      ${STATUSES.map(s=>html`
+        <div key=${s} class=${`stat s-${s}${statusF===s?' active':''}`} onClick=${()=>setStatusF(f=>f===s?'all':s)}>
+          <div class="stat-label">${SL[s]}</div><div class="stat-num">${counts[s]||0}</div>
+        </div>`)}
+    </div>
+    <div class="grid3 mb20">
+      <div class="stat s-overdue" style=${{cursor:'default'}}>
+        <div class="stat-label">⚠ Overdue</div><div class="stat-num">${overdueCount}</div><div class="stat-sub">past due date</div>
+      </div>
+      <div class="stat s-unassigned" style=${{cursor:canAssign&&unassignedOpen>0?'pointer':'default',background:unassignedOpen>0?'#fffbeb':undefined,borderLeft:'4px solid #f59e0b'}} onClick=${()=>canAssign&&unassignedOpen>0&&setStatusF('open')}>
+        <div class="stat-label">👤 Unassigned Open</div><div class="stat-num">${unassignedOpen}</div>
+        <div class="stat-sub">${canAssign&&unassignedOpen>0?'Click to filter & assign':''}</div>
+      </div>
+      <div class="stat s-pm" style=${{cursor:'default'}}>
+        <div class="stat-label">📅 Planned Work</div><div class="stat-num">${issues.filter(i=>i.wo_type==='preventive'||i.wo_type==='inspection').length}</div>
+      </div>
+    </div>
+    ${canAssign&&unassignedOpen>0&&html`
+      <div class="alert alert-info mb16">
+        <span>👤</span>
+        <div><strong>${unassignedOpen} open issue${unassignedOpen!==1?'s':''} need assignment.</strong> Use the <strong>+ Assign</strong> button in the table to delegate directly.</div>
+      </div>`}
+    <div class="toolbar">
+      <div class="search">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input placeholder="Search by #, summary, asset, submitter…" value=${search} onInput=${e=>setSearch(e.target.value)}/>
+      </div>
+      <select class="fsel" value=${prioF} onChange=${e=>setPrioF(e.target.value)}>
+        <option value="all">All Priorities</option>
+        ${Object.entries(PL).map(([k,v])=>html`<option key=${k} value=${k}>${v}</option>`)}
+      </select>
+      <select class="fsel" value=${typeF} onChange=${e=>setTypeF(e.target.value)}>
+        <option value="all">All Types</option>
+        ${Object.entries(TL).map(([k,v])=>html`<option key=${k} value=${k}>${v}</option>`)}
+      </select>
+      ${(statusF!=='all'||prioF!=='all'||typeF!=='all')&&html`<button class="btn btn-ghost btn-sm" onClick=${()=>{setStatusF('all');setPrioF('all');setTypeF('all');}}>✕ Clear</button>`}
+      <button class="btn btn-primary" style=${{marginLeft:'auto'}} onClick=${onNew}>+ Report Issue</button>
+    </div>
+    <div class="tbl-wrap">
+      ${filtered.length===0 ? html`<div class="empty"><div class="ei">📋</div><p>No issues match your filters.</p></div>` : html`
+        <table class="tbl">
+          <thead><tr>
+            <th>#</th><th>Type</th><th>Summary</th><th>Asset</th><th>Priority</th><th>Status</th>
+            <th>Assigned To ${canAssign&&html`<span style=${{fontWeight:400,fontSize:'9px',color:'var(--text4)'}}>— click + Assign</span>`}</th>
+            <th>Due</th>
+          </tr></thead>
+          <tbody>
+            ${filtered.map(i => {
+              const asset = assets.find(a=>a.id===i.asset_id);
+              const od = isOverdue(i);
+              const unass = i.status==='open'&&!i.assigned_to;
+              return html`
+                <tr key=${i.id} class=${`row-click${od?' row-overdue':unass?' row-unassigned':''}`} onClick=${()=>onSelect(i)}>
+                  <td><span class="wo-num">#${i.issue_number}</span></td>
+                  <td><${TypeBadge} t=${i.wo_type}/></td>
+                  <td>
+                    <div style=${{fontWeight:500,maxWidth:'260px'}}>${i.summary}</div>
+                    ${i.exact_location&&html`<div style=${{fontSize:'11px',color:'var(--text4)'}}>📍 ${i.exact_location}</div>`}
+                  </td>
+                  <td>
+                    <div style=${{fontSize:'12px',fontWeight:500}}>${asset?.name||'—'}</div>
+                    ${asset&&html`<div style=${{fontSize:'10px',color:'var(--text4)',textTransform:'capitalize'}}>${asset.type}</div>`}
+                  </td>
+                  <td><${PrioBadge} p=${i.priority}/></td>
+                  <td><${StatusBadge} s=${i.status}/></td>
+                  <td onClick=${e=>e.stopPropagation()}><${InlineAssign} issue=${i} staff=${staff} role=${role} onDone=${onRefresh}/></td>
+                  <td style=${{fontSize:'12px',fontWeight:od?700:400,color:od?'var(--red)':'var(--text2)',whiteSpace:'nowrap'}}>
+                    ${fmt(i.due_date,{month:'short',day:'numeric'})}
+                    ${od&&html`<div style=${{fontSize:'10px',color:'var(--red)'}}>OVERDUE</div>`}
+                  </td>
+                </tr>`;
+            })}
+          </tbody>
+        </table>`}
+    </div>
+    <div style=${{marginTop:'8px',fontSize:'11px',color:'var(--text4)',textAlign:'right'}}>${filtered.length} issue${filtered.length!==1?'s':''}</div>
+  </div>`;
+}
+
+// ── INSPECTIONS PAGE ──
+function InspectionsPage({assets, templates, onRefresh}) {
+  const [sel, setSel] = useState(null);
+  const [form, setForm] = useState({template_id:'',asset_id:'',inspector:'',results:{},notes:''});
+  const [saving, setSaving] = useState(false);
+  const [done, setDone] = useState(null);
+
+  const start = t => { setSel(t); setForm({template_id:t.id,asset_id:'',inspector:'',results:{},notes:''}); setDone(null); };
+  const setR = (id, val) => setForm(f => ({...f, results:{...f.results,[id]:val}}));
+
+  const submit = async () => {
+    if (!form.asset_id || !form.inspector) return;
+    setSaving(true);
+    try {
+      const items = sel.items||[];
+      const arr = items.map(item => ({id:item.id,label:item.label,type:item.type,value:form.results[item.id]||''}));
+      const fails = arr.filter(r=>r.type==='pass_fail'&&r.value==='fail');
+      const passed = fails.length===0;
+      const [insp] = await sb('inspections', {method:'POST', body:JSON.stringify({template_id:form.template_id,asset_id:form.asset_id,inspector:form.inspector,results:arr,passed,notes:form.notes})});
+      if (!passed) {
+        const asset = assets.find(a=>a.id===form.asset_id);
+        const [ni] = await sb('issues', {method:'POST', body:JSON.stringify({wo_type:'inspection',summary:`Inspection Failure: ${sel.name}`,description:`Failed at ${asset?.name||'unknown'}.\n\nFailed:\n${fails.map(f=>'• '+f.label).join('\n')}\n\nNotes: ${form.notes||'none'}`,asset_id:form.asset_id,priority:'high',submitted_by:form.inspector,status:'open'})});
+        await sb(`inspections?id=eq.${insp.id}`, {method:'PATCH', body:JSON.stringify({issue_id:ni.id}), prefer:'return=minimal'});
+        setDone({passed:false, failCount:fails.length, issueNum:ni.issue_number});
+      } else { setDone({passed:true}); }
+      onRefresh();
+    } catch(e) { console.error(e); }
+    setSaving(false);
+  };
+
+  if (done) return html`<div>
+    <button class="btn btn-ghost btn-sm mb16" onClick=${()=>{setSel(null);setDone(null);}}>← Back</button>
+    <div class="card" style=${{maxWidth:'520px',textAlign:'center',padding:'40px'}}>
+      <div style=${{fontSize:'64px',marginBottom:'16px'}}>${done.passed?'✅':'⚠️'}</div>
+      <h2 style=${{fontSize:'22px',fontWeight:700,marginBottom:'8px'}}>${done.passed?'Inspection Passed!':'Inspection Failed'}</h2>
+      ${done.passed ? html`<p style=${{color:'var(--text3)'}}>All items passed. Record saved.</p>` : html`<p style=${{color:'var(--red)'}}>${done.failCount} item${done.failCount!==1?'s':''} failed. Issue #${done.issueNum} auto-created.</p>`}
+      <button class="btn btn-primary" style=${{marginTop:'20px'}} onClick=${()=>{setSel(null);setDone(null);}}>Back to Inspections</button>
+    </div>
+  </div>`;
+
+  if (sel) {
+    const items = sel.items||[];
+    const allOk = items.filter(i=>i.type==='pass_fail').every(i=>form.results[i.id]);
+    return html`<div>
+      <button class="btn btn-ghost btn-sm mb16" onClick=${()=>setSel(null)}>← Back</button>
+      <div class="card" style=${{maxWidth:'680px'}}>
+        <h2 style=${{fontWeight:700,marginBottom:'4px'}}>${sel.name}</h2>
+        <p style=${{color:'var(--text3)',fontSize:'13px',marginBottom:'20px'}}>${sel.category}</p>
+        <div class="fgrid mb16">
+          <div class="fg"><label class="flabel">Asset <span class="req">*</span></label>
+            <select class="fsel2" value=${form.asset_id} onChange=${e=>setForm(f=>({...f,asset_id:e.target.value}))}>
+              <option value="">Select…</option>${assets.map(a=>html`<option key=${a.id} value=${a.id}>${a.name} (${a.type})</option>`)}
+            </select>
+          </div>
+          <div class="fg"><label class="flabel">Inspector <span class="req">*</span></label><input class="finput" placeholder="Your name…" value=${form.inspector} onInput=${e=>setForm(f=>({...f,inspector:e.target.value}))}/></div>
+        </div>
+        ${items.map(item=>html`
+          <div key=${item.id} class="ci-item">
+            <div class="ci-label">${item.label}</div>
+            ${item.type==='pass_fail'&&html`<div class="ci-btns">
+              <button class=${`btn btn-xs ${form.results[item.id]==='pass'?'btn-success':'btn-ghost'}`} onClick=${()=>setR(item.id,'pass')}>✓ Pass</button>
+              <button class=${`btn btn-xs ${form.results[item.id]==='fail'?'btn-danger':'btn-ghost'}`} onClick=${()=>setR(item.id,'fail')}>✗ Fail</button>
+            </div>`}
+            ${item.type==='text'&&html`<input class="finput" style=${{width:'220px',fontSize:'12px'}} placeholder="Notes…" value=${form.results[item.id]||''} onInput=${e=>setR(item.id,e.target.value)}/>`}
+          </div>`)}
+        <div class="fg" style=${{marginTop:'16px'}}><label class="flabel">Overall Notes</label><textarea class="ftextarea" rows="3" value=${form.notes} onInput=${e=>setForm(f=>({...f,notes:e.target.value}))}></textarea></div>
+        <div style=${{marginTop:'16px',display:'flex',gap:'8px'}}>
+          <button class="btn btn-primary" onClick=${submit} disabled=${saving||!allOk||!form.asset_id||!form.inspector}>${saving?'Saving…':'Submit Inspection'}</button>
+          ${!allOk&&html`<span style=${{fontSize:'12px',color:'var(--text4)',alignSelf:'center'}}>Answer all pass/fail items first.</span>`}
+        </div>
+      </div>
+    </div>`;
+  }
+
+  return html`<div>
+    <h2 style=${{fontSize:'18px',fontWeight:700,marginBottom:'4px'}}>Inspection Checklists</h2>
+    <p style=${{color:'var(--text3)',fontSize:'13px',marginBottom:'20px'}}>Failed items automatically generate a work order.</p>
+    <div class="grid2">
+      ${templates.map(t=>html`
+        <div key=${t.id} class="card" style=${{cursor:'pointer'}} onClick=${()=>start({...t,items:t.items||[]})}>
+          <div style=${{display:'flex',gap:'12px',alignItems:'flex-start'}}>
+            <div style=${{fontSize:'32px',lineHeight:1}}>${t.name.includes('Playground')?'🛝':'🏢'}</div>
+            <div><div style=${{fontWeight:700,marginBottom:'3px'}}>${t.name}</div><div style=${{fontSize:'12px',color:'var(--text3)'}}>${t.category}</div><div style=${{fontSize:'11px',color:'var(--text4)',marginTop:'4px'}}>${(t.items||[]).length} checklist items</div></div>
+          </div>
+          <button class="btn btn-primary btn-sm" style=${{marginTop:'14px',width:'100%'}}>Start Inspection →</button>
+        </div>`)}
+    </div>
+  </div>`;
+}
+
+// ── PM PAGE ──
+function PMPage({pmSchedules, assets, categories, staff, onRefresh}) {
+  const [showAdd, setShowAdd] = useState(false);
+  const [form, setForm] = useState({title:'',description:'',asset_id:'',category_id:'',frequency:'monthly',next_due:'',assigned_to:''});
+  const [saving, setSaving] = useState(false);
+  const save = async () => {
+    if (!form.title.trim()) return;
+    setSaving(true);
+    const p = {...form};
+    ['asset_id','category_id','next_due','assigned_to'].forEach(k => { if (!p[k]) delete p[k]; });
+    await sb('pm_schedules', {method:'POST', body:JSON.stringify(p), prefer:'return=minimal'});
+    setSaving(false); setShowAdd(false); setForm({title:'',description:'',asset_id:'',category_id:'',frequency:'monthly',next_due:'',assigned_to:''}); onRefresh();
+  };
+  const sorted = [...pmSchedules].sort((a,b)=>new Date(a.next_due||'9999')-new Date(b.next_due||'9999'));
+  const pmIcon = t => t.includes('Playground')?'🛝':t.includes('Restroom')||t.includes('Facility')?'🏢':t.includes('Mow')?'🌿':t.includes('Irr')?'💧':t.includes('HVAC')?'❄️':t.includes('Fire')?'🔥':'📅';
+
+  return html`<div>
+    <div class="toolbar"><h2 style=${{flex:1,fontSize:'18px',fontWeight:700}}>PM Schedules</h2><button class="btn btn-primary btn-sm" onClick=${()=>setShowAdd(v=>!v)}>+ Add PM Schedule</button></div>
+    ${showAdd&&html`
+      <div class="card mb16" style=${{maxWidth:'660px'}}>
+        <div class="fw7 mb12">New PM Schedule</div>
+        <div class="fgrid">
+          <div class="fg ffull"><label class="flabel">Title <span class="req">*</span></label><input class="finput" value=${form.title} onInput=${e=>setForm(f=>({...f,title:e.target.value}))} placeholder="e.g. Monthly Playground Inspection"/></div>
+          <div class="fg ffull"><label class="flabel">Description</label><textarea class="ftextarea" rows="2" value=${form.description} onInput=${e=>setForm(f=>({...f,description:e.target.value}))}></textarea></div>
+          <div class="fg"><label class="flabel">Asset</label><select class="fsel2" value=${form.asset_id} onChange=${e=>setForm(f=>({...f,asset_id:e.target.value}))}><option value="">All</option>${assets.map(a=>html`<option key=${a.id} value=${a.id}>${a.name}</option>`)}</select></div>
+          <div class="fg"><label class="flabel">Category</label><select class="fsel2" value=${form.category_id} onChange=${e=>setForm(f=>({...f,category_id:e.target.value}))}><option value="">—</option>${categories.map(c=>html`<option key=${c.id} value=${c.id}>${c.name}</option>`)}</select></div>
+          <div class="fg"><label class="flabel">Frequency</label><select class="fsel2" value=${form.frequency} onChange=${e=>setForm(f=>({...f,frequency:e.target.value}))}>${Object.entries(FREQ).map(([k,v])=>html`<option key=${k} value=${k}>${v}</option>`)}</select></div>
+          <div class="fg"><label class="flabel">Next Due</label><input type="date" class="finput" value=${form.next_due} onChange=${e=>setForm(f=>({...f,next_due:e.target.value}))}/></div>
+          <div class="fg ffull"><label class="flabel">Assign To</label><select class="fsel2" value=${form.assigned_to} onChange=${e=>setForm(f=>({...f,assigned_to:e.target.value}))}><option value="">—</option>${staff.map(s=>html`<option key=${s.id} value=${s.id}>${s.name}</option>`)}</select></div>
+        </div>
+        <div style=${{display:'flex',gap:'8px',marginTop:'14px'}}>
+          <button class="btn btn-primary btn-sm" onClick=${save} disabled=${saving}>${saving?'Saving…':'Save'}</button>
+          <button class="btn btn-ghost btn-sm" onClick=${()=>setShowAdd(false)}>Cancel</button>
+        </div>
+      </div>`}
+    <div class="tbl-wrap">
+      ${sorted.map(pm => {
+        const asset=assets.find(a=>a.id===pm.asset_id), cat=categories.find(c=>c.id===pm.category_id), tech=staff.find(s=>s.id===pm.assigned_to);
+        const days=daysUntil(pm.next_due), urgent=days!==null&&days<=7&&days>=0, past=days!==null&&days<0;
+        return html`<div key=${pm.id} class="pm-card">
+          <div class="pm-icon">${pmIcon(pm.title)}</div>
+          <div class="pm-info">
+            <div class="pm-title">${pm.title}</div>
+            <div class="pm-meta">${FREQ[pm.frequency]}${asset?' · '+asset.name:''}${cat?' · '+cat.name:''}${tech?' · '+tech.name:''}</div>
+          </div>
+          <div class="pm-due" style=${{color:past?'var(--red)':urgent?'var(--amber)':'var(--text2)'}}>
+            ${pm.next_due ? html`${past?'⚠ ':urgent?'⏰ ':''}${fmt(pm.next_due)}<br/><span style=${{fontSize:'10px',fontWeight:400,color:'var(--text4)'}}>${days!==null?(past?Math.abs(days)+'d overdue':days===0?'Due today':'In '+days+' days'):'—'}</span>` : 'No date set'}
+          </div>
+          <span style=${{fontSize:'10px',padding:'3px 8px',background:pm.active?'var(--green-light)':'var(--surface2)',color:pm.active?'var(--green)':'var(--text4)',borderRadius:'20px',fontWeight:600,flexShrink:0}}>${pm.active?'Active':'Inactive'}</span>
+        </div>`;
+      })}
+      ${sorted.length===0&&html`<div class="empty"><div class="ei">📅</div><p>No PM schedules yet.</p></div>`}
+    </div>
+  </div>`;
+}
+
+// ── REPORTS PAGE ──
+function ReportsPage({issues, assets, categories}) {
+  const closed=issues.filter(i=>i.status==='closed'), open=issues.filter(i=>i.status!=='closed');
+  const overdue=issues.filter(i=>isOverdue(i)), critical=issues.filter(i=>i.priority==='critical'&&i.status!=='closed');
+  const totalCost=issues.reduce((a,i)=>a+(parseFloat(i.labor_cost)||0)+(parseFloat(i.total_parts_cost)||0),0);
+  const wc=closed.filter(i=>i.closed_at), avgClose=wc.length>0?(wc.reduce((a,i)=>a+(new Date(i.closed_at)-new Date(i.created_at))/864e5,0)/wc.length).toFixed(1):'—';
+  const plannedPct=issues.length>0?Math.round(issues.filter(i=>i.wo_type==='preventive'||i.wo_type==='inspection').length/issues.length*100):0;
+  const byCat=categories.map(c=>({n:c.name,v:issues.filter(i=>i.category_id===c.id).length})).filter(x=>x.v>0).sort((a,b)=>b.v-a.v).slice(0,8);
+  const byAsset=assets.map(a=>({n:a.name,v:issues.filter(i=>i.asset_id===a.id).length})).filter(x=>x.v>0).sort((a,b)=>b.v-a.v).slice(0,8);
+  const byStat=STATUSES.map(s=>({n:SL[s],v:issues.filter(i=>i.status===s).length,c:s==='open'?'var(--blue)':s==='assigned'?'#f59e0b':s==='in_progress'?'var(--orange)':s==='review'?'var(--purple)':'var(--green)'}));
+  const maxCat=Math.max(...byCat.map(x=>x.v),1),maxAsset=Math.max(...byAsset.map(x=>x.v),1),maxStat=Math.max(...byStat.map(x=>x.v),1);
+  const BarChart = ({data,max,color}) => html`${data.map(x=>html`
+    <div key=${x.n} class="bar-row">
+      <div class="bar-label">${x.n.length>22?x.n.slice(0,22)+'…':x.n}</div>
+      <div class="bar-track"><div class="bar-fill" style=${{width:`${(x.v/max)*100}%`,background:color||'var(--blue)'}}></div></div>
+      <div class="bar-count">${x.v}</div>
+    </div>`)}`;
+
+  return html`<div>
+    <h2 style=${{fontSize:'18px',fontWeight:700,marginBottom:'16px'}}>Reports & Analytics</h2>
+    <div class="kpi-row">
+      <div class="kpi"><div class="kpi-val" style=${{color:'var(--blue)'}}>${issues.length}</div><div class="kpi-label">Total Issues</div></div>
+      <div class="kpi"><div class="kpi-val" style=${{color:overdue.length>0?'var(--red)':'var(--text)'}}>${overdue.length}</div><div class="kpi-label">Overdue</div></div>
+      <div class="kpi"><div class="kpi-val" style=${{color:'var(--teal)'}}>${avgClose}<span style=${{fontSize:'14px'}}> days</span></div><div class="kpi-label">Avg Close Time</div></div>
+      <div class="kpi"><div class="kpi-val" style=${{color:'var(--green)'}}>\$${totalCost.toLocaleString('en-US',{maximumFractionDigits:0})}</div><div class="kpi-label">Total Cost</div></div>
+    </div>
+    <div class="kpi-row">
+      <div class="kpi"><div class="kpi-val" style=${{color:'var(--green)'}}>${closed.length}</div><div class="kpi-label">Closed</div></div>
+      <div class="kpi"><div class="kpi-val" style=${{color:'var(--orange)'}}>${open.length}</div><div class="kpi-label">Open</div></div>
+      <div class="kpi"><div class="kpi-val" style=${{color:'var(--teal)'}}>${plannedPct}%</div><div class="kpi-label">Planned Work</div></div>
+      <div class="kpi"><div class="kpi-val" style=${{color:'var(--red)'}}>${critical.length}</div><div class="kpi-label">Open Critical</div></div>
+    </div>
+    <div class="grid2">
+      <div class="card"><div class="card-title">Issues by Status</div><${BarChart} data=${byStat.map(x=>({n:x.n,v:x.v,c:x.c}))} max=${maxStat}/></div>
+      <div class="card"><div class="card-title">Issues by Category</div>${byCat.length>0?html`<${BarChart} data=${byCat} max=${maxCat}/>`:html`<p style=${{color:'var(--text4)',fontSize:'13px'}}>No data yet.</p>`}</div>
+      <div class="card"><div class="card-title">Issues by Asset</div>${byAsset.length>0?html`<${BarChart} data=${byAsset} max=${maxAsset} color="var(--teal)"/>`:html`<p style=${{color:'var(--text4)',fontSize:'13px'}}>No data yet.</p>`}</div>
+      <div class="card">
+        <div class="card-title">Overdue Issues (${overdue.length})</div>
+        ${overdue.length===0?html`<div style=${{color:'var(--text4)',fontSize:'13px'}}>✅ No overdue issues!</div>`:overdue.slice(0,8).map(i=>{
+          const asset=assets.find(a=>a.id===i.asset_id);
+          return html`<div key=${i.id} style=${{display:'flex',alignItems:'center',gap:'8px',padding:'8px 0',borderBottom:'1px solid var(--border)'}}>
+            <span class="wo-num">#${i.issue_number}</span>
+            <div style=${{flex:1}}><div style=${{fontSize:'12px',fontWeight:500}}>${i.summary.slice(0,40)}${i.summary.length>40?'…':''}</div><div style=${{fontSize:'11px',color:'var(--text4)'}}>${asset?.name||'—'}</div></div>
+            <span style=${{fontSize:'11px',color:'var(--red)',fontWeight:700}}>${Math.abs(daysUntil(i.due_date))}d overdue</span>
+          </div>`;
+        })}
+      </div>
+    </div>
+  </div>`;
+}
+
+// ── ASSETS PAGE ──
+function AssetsPage({assets, issues, onRefresh}) {
+  const [showAdd, setShowAdd] = useState(false);
+  const [form, setForm] = useState({name:'',type:'park',address:''});
+  const [saving, setSaving] = useState(false);
+  const save = async () => {
+    if (!form.name.trim()) return;
+    setSaving(true);
+    await sb('assets', {method:'POST', body:JSON.stringify(form), prefer:'return=minimal'});
+    setSaving(false); setShowAdd(false); setForm({name:'',type:'park',address:''}); onRefresh();
+  };
+  return html`<div>
+    <div class="toolbar"><h2 style=${{flex:1,fontSize:'18px',fontWeight:700}}>Assets</h2><button class="btn btn-primary btn-sm" onClick=${()=>setShowAdd(v=>!v)}>+ Add Asset</button></div>
+    ${showAdd&&html`<div class="card mb16" style=${{maxWidth:'560px'}}>
+      <div class="fw7 mb12">New Asset</div>
+      <div class="fgrid">
+        <div class="fg"><label class="flabel">Name <span class="req">*</span></label><input class="finput" value=${form.name} onInput=${e=>setForm(f=>({...f,name:e.target.value}))} placeholder="Asset name"/></div>
+        <div class="fg"><label class="flabel">Type</label><select class="fsel2" value=${form.type} onChange=${e=>setForm(f=>({...f,type:e.target.value}))}><option value="park">Park</option><option value="facility">Facility</option><option value="vehicle">Vehicle</option><option value="equipment">Equipment</option></select></div>
+        <div class="fg ffull"><label class="flabel">Address / Notes</label><input class="finput" value=${form.address} onInput=${e=>setForm(f=>({...f,address:e.target.value}))}/></div>
+      </div>
+      <div style=${{display:'flex',gap:'8px',marginTop:'12px'}}>
+        <button class="btn btn-primary btn-sm" onClick=${save} disabled=${saving}>${saving?'Saving…':'Save'}</button>
+        <button class="btn btn-ghost btn-sm" onClick=${()=>setShowAdd(false)}>Cancel</button>
+      </div>
+    </div>`}
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>Name</th><th>Type</th><th>Address</th><th>Open Issues</th><th>Status</th></tr></thead>
+      <tbody>${assets.map(a=>{const oc=issues.filter(i=>i.asset_id===a.id&&i.status!=='closed').length;return html`
+        <tr key=${a.id} style=${{cursor:'default'}}>
+          <td style=${{fontWeight:600}}>${a.name}</td>
+          <td><span style=${{textTransform:'capitalize',fontSize:'11px',background:'var(--surface2)',padding:'2px 9px',borderRadius:'20px',fontWeight:600}}>${a.type}</span></td>
+          <td style=${{color:'var(--text3)',fontSize:'12px'}}>${a.address||'—'}</td>
+          <td>${oc>0?html`<span style=${{color:'var(--orange)',fontWeight:700}}>${oc} open</span>`:html`<span style=${{color:'var(--green)',fontSize:'12px'}}>None</span>`}</td>
+          <td><span style=${{fontSize:'11px',color:a.active?'var(--green)':'var(--text4)',fontWeight:600}}>${a.active?'Active':'Inactive'}</span></td>
+        </tr>`;})}</tbody>
+    </table></div>
+  </div>`;
+}
+
+// ── STAFF PAGE ──
+function StaffPage({staff, issues, onRefresh}) {
+  const [showAdd, setShowAdd] = useState(false);
+  const [form, setForm] = useState({name:'',role:'technician',email:''});
+  const [saving, setSaving] = useState(false);
+  const save = async () => {
+    if (!form.name.trim()) return;
+    setSaving(true);
+    await sb('staff', {method:'POST', body:JSON.stringify(form), prefer:'return=minimal'});
+    setSaving(false); setShowAdd(false); setForm({name:'',role:'technician',email:''}); onRefresh();
+  };
+  return html`<div>
+    <div class="toolbar"><h2 style=${{flex:1,fontSize:'18px',fontWeight:700}}>Staff</h2><button class="btn btn-primary btn-sm" onClick=${()=>setShowAdd(v=>!v)}>+ Add Staff</button></div>
+    ${showAdd&&html`<div class="card mb16" style=${{maxWidth:'480px'}}>
+      <div class="fw7 mb12">New Staff Member</div>
+      <div class="fgrid">
+        <div class="fg"><label class="flabel">Name <span class="req">*</span></label><input class="finput" value=${form.name} onInput=${e=>setForm(f=>({...f,name:e.target.value}))} placeholder="Full name"/></div>
+        <div class="fg"><label class="flabel">Role</label><select class="fsel2" value=${form.role} onChange=${e=>setForm(f=>({...f,role:e.target.value}))}><option value="staff">Staff</option><option value="technician">Technician</option><option value="supervisor">Supervisor</option><option value="admin">Admin</option></select></div>
+        <div class="fg ffull"><label class="flabel">Email</label><input class="finput" type="email" value=${form.email} onInput=${e=>setForm(f=>({...f,email:e.target.value}))} placeholder="email@bgpd.org"/></div>
+      </div>
+      <div style=${{display:'flex',gap:'8px',marginTop:'12px'}}>
+        <button class="btn btn-primary btn-sm" onClick=${save} disabled=${saving}>${saving?'Saving…':'Save'}</button>
+        <button class="btn btn-ghost btn-sm" onClick=${()=>setShowAdd(false)}>Cancel</button>
+      </div>
+    </div>`}
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>Name</th><th>Role</th><th>Email</th><th>Assigned Issues</th><th>Status</th></tr></thead>
+      <tbody>${staff.map(s=>{const assigned=issues.filter(i=>i.assigned_to===s.id&&i.status!=='closed').length;return html`
+        <tr key=${s.id} style=${{cursor:'default'}}>
+          <td style=${{fontWeight:600}}>${s.name}</td>
+          <td><span style=${{textTransform:'capitalize',fontSize:'11px',background:'var(--surface2)',padding:'2px 9px',borderRadius:'20px',fontWeight:600}}>${s.role}</span></td>
+          <td style=${{color:'var(--text3)',fontSize:'12px'}}>${s.email||'—'}</td>
+          <td>${assigned>0?html`<span style=${{color:'var(--orange)',fontWeight:700}}>${assigned} active</span>`:html`<span style=${{color:'var(--text4)',fontSize:'12px'}}>None</span>`}</td>
+          <td><span style=${{fontSize:'11px',color:s.active?'var(--green)':'var(--text4)',fontWeight:600}}>${s.active?'Active':'Inactive'}</span></td>
+        </tr>`;})}</tbody>
+    </table></div>
+  </div>`;
+}
+
+// ── ROOT APP ──
+function App() {
+  const [page, setPage] = useState('issues');
+  const [issues, setIssues] = useState([]);
+  const [assets, setAssets] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [staff, setStaff] = useState([]);
+  const [pmSchedules, setPM] = useState([]);
+  const [templates, setTemplates] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showAdd, setShowAdd] = useState(false);
+  const [selected, setSelected] = useState(null);
+  const [role, setRole] = useState('admin');
+
+  const loadAll = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [iss,ass,cats,stf,pms,tmpl] = await Promise.all([
+        sb('issues?order=created_at.desc&limit=500'),
+        sb('assets?order=type.asc,name.asc&active=eq.true'),
+        sb('categories?order=name.asc&active=eq.true'),
+        sb('staff?order=name.asc&active=eq.true'),
+        sb('pm_schedules?order=next_due.asc&active=eq.true'),
+        sb('inspection_templates?order=name.asc&active=eq.true'),
+      ]);
+      setIssues(iss||[]); setAssets(ass||[]); setCategories(cats||[]); setStaff(stf||[]); setPM(pms||[]); setTemplates(tmpl||[]);
+    } catch(e) { console.error('Load error:', e); }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { loadAll(); }, [loadAll]);
+
+  const reload = async (keepSelected = false) => {
+    await loadAll();
+    if (keepSelected && selected) {
+      const fresh = await sb(`issues?id=eq.${selected.id}`);
+      if (fresh?.[0]) setSelected(fresh[0]);
+    }
+  };
+
+  const overdueCount = issues.filter(i=>isOverdue(i)).length;
+  const critCount = issues.filter(i=>i.priority==='critical'&&i.status!=='closed').length;
+  const openCount = issues.filter(i=>i.status==='open').length;
+  const pmDue = pmSchedules.filter(p=>{const d=daysUntil(p.next_due);return d!==null&&d<=7;}).length;
+  const pageTitles = {issues:'Maintenance Issues',pm:'Preventive Maintenance',inspections:'Inspections',reports:'Reports & Analytics',assets:'Assets',staff:'Staff'};
+  const nav = p => { setPage(p); setSelected(null); };
+
+  if (loading) return html`<div class="loading-screen"><div style=${{fontSize:'36px'}}>🏙️</div><div style=${{fontSize:'14px',color:'var(--text3)'}}>Loading BGPD Maintenance System…</div></div>`;
+
+  return html`
+    <div class="sidebar">
+      <div class="sb-logo">
+        <div class="sb-badge">BGPD</div>
+        <div class="sb-title">Maintenance System</div>
+        <div class="sb-subtitle">Buffalo Grove Park District</div>
+      </div>
+      <div class="sb-section">Work Orders</div>
+      <div class="sb-nav">
+        <button class=${`sb-item${page==='issues'?' active':''}`} onClick=${()=>nav('issues')}>
+          📋 Issues ${openCount>0&&html`<span class="sb-cnt">${openCount}</span>`}
+        </button>
+      </div>
+      <div class="sb-section">Proactive</div>
+      <div class="sb-nav">
+        <button class=${`sb-item${page==='pm'?' active':''}`} onClick=${()=>nav('pm')}>
+          📅 PM Schedules ${pmDue>0&&html`<span class="sb-cnt amb">${pmDue}</span>`}
+        </button>
+        <button class=${`sb-item${page==='inspections'?' active':''}`} onClick=${()=>nav('inspections')}>✅ Inspections</button>
+      </div>
+      ${(role==='admin'||role==='supervisor') && html`
+        <div class="sb-section">Analytics</div>
+        <div class="sb-nav"><button class=${`sb-item${page==='reports'?' active':''}`} onClick=${()=>nav('reports')}>📊 Reports</button></div>
+        <div class="sb-section">Admin</div>
+        <div class="sb-nav">
+          <button class=${`sb-item${page==='assets'?' active':''}`} onClick=${()=>nav('assets')}>🗂️ Assets</button>
+          <button class=${`sb-item${page==='staff'?' active':''}`} onClick=${()=>nav('staff')}>👥 Staff</button>
+        </div>`}
+      ${overdueCount>0&&html`<div style=${{margin:'8px 10px',padding:'10px 12px',background:'var(--red-light)',borderRadius:'8px',border:'1px solid #fca5a5'}}><div style=${{fontSize:'12px',fontWeight:700,color:'var(--red)'}}>⚠ ${overdueCount} Overdue Issue${overdueCount!==1?'s':''}</div></div>`}
+      ${critCount>0&&html`<div style=${{margin:'4px 10px 8px',padding:'10px 12px',background:'#fff1f2',borderRadius:'8px',border:'1px solid #fecdd3'}}><div style=${{fontSize:'12px',fontWeight:700,color:'var(--red)'}}>🚨 ${critCount} Critical Open</div></div>`}
+      <div class="sb-role">
+        <label>Viewing as</label>
+        <select value=${role} onChange=${e=>setRole(e.target.value)}>
+          <option value="staff">Staff</option><option value="technician">Technician</option>
+          <option value="supervisor">Supervisor</option><option value="admin">Admin</option>
+        </select>
+      </div>
+    </div>
+    <div class="main">
+      <div class="topbar">
+        ${selected
+          ? html`<span class="page-title">Issue #${selected.issue_number} <span style=${{fontSize:'14px',fontWeight:400,color:'var(--text3)'}}>${selected.summary.slice(0,50)}${selected.summary.length>50?'…':''}</span></span>`
+          : html`<span class="page-title">${pageTitles[page]||''}</span>`}
+        ${page==='issues'&&!selected&&html`<button class="btn btn-primary btn-sm" onClick=${()=>setShowAdd(true)}>+ Report Issue</button>`}
+        <button class="btn btn-ghost btn-sm" onClick=${()=>reload(!!selected)} style=${{marginLeft:'8px'}} title="Refresh">↻</button>
+      </div>
+      <div class="content">
+        ${page==='issues'&&(selected
+          ? html`<${IssueDetail} issue=${selected} assets=${assets} categories=${categories} staff=${staff} role=${role} onBack=${()=>setSelected(null)} onUpdate=${reload}/>`
+          : html`<${IssuesList} issues=${issues} assets=${assets} categories=${categories} staff=${staff} role=${role} onSelect=${setSelected} onNew=${()=>setShowAdd(true)} onRefresh=${reload}/>`)}
+        ${page==='pm'&&html`<${PMPage} pmSchedules=${pmSchedules} assets=${assets} categories=${categories} staff=${staff} onRefresh=${reload}/>`}
+        ${page==='inspections'&&html`<${InspectionsPage} assets=${assets} templates=${templates} onRefresh=${reload}/>`}
+        ${page==='reports'&&html`<${ReportsPage} issues=${issues} assets=${assets} categories=${categories}/>`}
+        ${page==='assets'&&html`<${AssetsPage} assets=${assets} issues=${issues} onRefresh=${reload}/>`}
+        ${page==='staff'&&html`<${StaffPage} staff=${staff} issues=${issues} onRefresh=${reload}/>`}
+      </div>
+    </div>
+    ${showAdd&&html`<${AddIssueModal} assets=${assets} categories=${categories} onSave=${()=>{setShowAdd(false);reload();}} onClose=${()=>setShowAdd(false)}/>`}
+  `;
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(html`<${App}/>`);
+</script>
+</body>
+</html>
