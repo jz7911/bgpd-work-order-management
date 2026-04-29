@@ -1488,24 +1488,24 @@ function openNewIssue(){
     +'<div class="fg"><label class="flabel">Your Name <span class="req">*</span></label><input type="text" class="finput" id="ni-by" placeholder="Full name…"></div>';
 
   var isMobile=window.innerWidth<=768;
-  var html='<div class="'+(isMobile?'sheet-overlay':'overlay')+'" id="ni-overlay" onclick="if(event.target===this)var ov2=document.getElementById('ni-overlay');if(ov2)ov2.remove();">';
+  var html='<div class="'+(isMobile?'sheet-overlay':'overlay')+'" id="ni-overlay" onclick="if(event.target===this)closeNI()">';
   html+='<div class="'+(isMobile?'sheet':'modal')+'">';
   if(isMobile)html+='<div class="sheet-handle"></div>';
   html+='<div class="'+(isMobile?'sheet-hdr':'modal-hdr')+'">';
   if(!isMobile)html+='<div class="modal-hdr-icon" style="background:var(--brand-l)">📝</div>';
   html+='<div class="'+(isMobile?'':'modal-hdr-text')+'"><h'+(isMobile?3:2)+' class="">Report New Issue</h'+(isMobile?3:2)+'><p'+(isMobile?'':'')+'>Fill in what you know — more detail helps faster resolution.</p></div>';
-  html+='<button class="btn btn-ghost btn-xs" onclick="var ov2=document.getElementById('ni-overlay');if(ov2)ov2.remove();" style="margin-left:auto">✕</button>';
+  html+='<button class="btn btn-ghost btn-xs" onclick="closeNI()" style="margin-left:auto">✕</button>';
   html+='</div>';
   html+='<div id="ni-err" class="hidden" style="margin:0 26px;padding-top:14px"></div>';
   html+='<div class="'+(isMobile?'sheet-body':'modal-body')+'">'+form+'</div>';
   html+='<div class="'+(isMobile?'sheet-footer':'modal-footer')+'">';
-  html+='<button class="btn btn-ghost" onclick="var ov2=document.getElementById('ni-overlay');if(ov2)ov2.remove();">Cancel</button>';
+  html+='<button class="btn btn-ghost" onclick="closeNI()">Cancel</button>';
   html+='<button class="btn btn-primary" onclick="submitNewIssue()">✓ Submit Issue</button>';
   html+='</div></div></div>';
   document.body.insertAdjacentHTML('beforeend',html);
 }
 
-function var ov2=document.getElementById('ni-overlay');if(ov2)ov2.remove();{var el=document.getElementById('new-issue-overlay');if(el)el.remove();}
+function closeNI(){var el=document.getElementById('ni-overlay');if(el)el.remove();}
 
 function selType(t){
   newType=t;
@@ -1546,7 +1546,7 @@ function submitNewIssue(){
   DB.issues.unshift(issue);
   DB.history.push({id:uid(),iid:id,by:by,from:null,to:'open',note:'Issue submitted',ts:nowISO()});
   saveDB(DB);
-  var ov2=document.getElementById('ni-overlay');if(ov2)ov2.remove();;
+  closeNI();
   updateCounts();
   renderPage(currentTab);
   // Open the new issue immediately
@@ -2058,13 +2058,13 @@ function toast(msg,type,dur){
 function buildAssets(){
   var b='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">';
   b+='<div><h2 style="font-size:19px;font-weight:800">Asset Profiles</h2><p style="font-size:14px;color:var(--text3);margin-top:2px">Each asset is a command center — history, costs, open issues, PMs all in one place.</p></div>';
-  b+='<button class="btn btn-primary btn-sm" onclick="toggleF('add-asset-form')">+ Add Asset</button></div>';
+  b+='<button class="btn btn-primary btn-sm" onclick="toggleF(\'add-asset-form\')">+ Add Asset</button></div>';
   b+='<div id="add-asset-form" style="display:none" class="dsec"><div class="dsec-hdr">New Asset</div><div class="dsec-body">';
   b+='<div class="two-col"><div class="fg"><label class="flabel" style="font-size:12px">Name *</label><input type="text" class="finput" id="na-name" placeholder="Asset name" style="font-size:14px;padding:9px 12px"></div>';
   b+='<div class="fg"><label class="flabel" style="font-size:12px">Type</label><select class="fsel" id="na-type" style="font-size:14px;padding:9px 12px"><option value="park">Park</option><option value="facility">Facility</option><option value="vehicle">Vehicle</option><option value="equipment">Equipment</option></select></div></div>';
   b+='<div class="two-col"><div class="fg"><label class="flabel" style="font-size:12px">Address</label><input type="text" class="finput" id="na-addr" style="font-size:14px;padding:9px 12px"></div>';
   b+='<div class="fg"><label class="flabel" style="font-size:12px">Notes / Vendor Info</label><input type="text" class="finput" id="na-notes" placeholder="Service contacts, warranty info…" style="font-size:14px;padding:9px 12px"></div></div>';
-  b+='<div style="display:flex;gap:8px"><button class="btn btn-primary btn-sm" onclick="saveNewAsset()">Save</button><button class="btn btn-ghost btn-sm" onclick="toggleF('add-asset-form')">Cancel</button></div></div></div>';
+  b+='<div style="display:flex;gap:8px"><button class="btn btn-primary btn-sm" onclick="saveNewAsset()">Save</button><button class="btn btn-ghost btn-sm" onclick="toggleF(\'add-asset-form\')">Cancel</button></div></div></div>';
 
   DB.assets.forEach(function(a){
     var openIss=DB.issues.filter(function(i){return i.asset===a.id&&i.status!=='closed';});
@@ -2093,18 +2093,18 @@ function buildAssets(){
       b+='<div style="padding:12px 16px;border-top:1px solid var(--border)">';
       b+='<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text3);margin-bottom:9px">Open Issues</div>';
       openIss.slice(0,3).forEach(function(i){
-        b+='<div style="display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="openDetail(''+i.id+'')">';
+        b+='<div style="display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="openDetail(\''+i.id+'\')">';
         b+=badge(i.status)+ptag(i.prio);
         b+='<span style="flex:1;font-size:13px;font-weight:600">'+esc(i.summary.slice(0,55))+'</span>';
         b+='<span style="font-size:11.5px;color:var(--text4)">'+fmtAge(i.created)+'</span>';
         b+='</div>';
       });
-      if(openIss.length>3)b+='<button class="btn btn-ghost btn-xs" style="margin-top:8px" onclick="issFilter='open';navTo('issues')">+'+( openIss.length-3)+' more</button>';
+      if(openIss.length>3)b+='<button class="btn btn-ghost btn-xs" style="margin-top:8px" onclick="issFilter=\'open\';navTo(\'issues\')">+'+( openIss.length-3)+' more</button>';
       b+='</div>';
     }
     b+='<div style="padding:11px 16px;border-top:1px solid var(--border);display:flex;gap:8px">';
-    b+='<button class="btn btn-ghost btn-xs" onclick="openNewIssue(''+a.id+'')">+ Report Issue</button>';
-    b+='<button class="btn btn-ghost btn-xs" onclick="issFilter='all';issSearch=''+esc(a.name)+'';navTo('issues')">📋 All History</button>';
+    b+='<button class="btn btn-ghost btn-xs" onclick="openNewIssue(\''+a.id+'\')">+ Report Issue</button>';
+    b+='<button class="btn btn-ghost btn-xs" onclick="issFilter=\'all\';navTo(\'issues\')">📋 All History</button>';
     b+='</div></div>';
   });
   return b;
@@ -2122,7 +2122,7 @@ function buildParts(){
   var lowStock=inv.filter(function(p){return p.qty<=p.minQty;});
   var b='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">';
   b+='<div><h2 style="font-size:19px;font-weight:800">Parts Inventory</h2><p style="font-size:14px;color:var(--text3);margin-top:2px">Track stock levels, get alerts when parts run low. Auto-alerts when below minimum.</p></div>';
-  b+='<button class="btn btn-primary btn-sm" onclick="toggleF('add-part-inv')">+ Add Part</button></div>';
+  b+='<button class="btn btn-primary btn-sm" onclick="toggleF(\'add-part-inv\')">+ Add Part</button></div>';
   b+='<div id="add-part-inv" style="display:none" class="dsec" style="margin-bottom:16px"><div class="dsec-hdr">New Part / Material</div><div class="dsec-body">';
   b+='<div class="two-col"><div class="fg"><label class="flabel" style="font-size:12px">Part Name *</label><input type="text" class="finput" id="np-name" placeholder="e.g. Swing Chain 6ft" style="font-size:14px;padding:9px 12px"></div>';
   b+='<div class="fg"><label class="flabel" style="font-size:12px">SKU / Part #</label><input type="text" class="finput" id="np-sku" placeholder="Optional" style="font-size:14px;padding:9px 12px"></div></div>';
@@ -2131,7 +2131,7 @@ function buildParts(){
   b+='<div class="fg"><label class="flabel" style="font-size:12px">Unit Cost ($)</label><input type="number" class="finput" id="np-cost" value="0" min="0" step="0.01" style="font-size:14px;padding:9px 12px"></div></div>';
   b+='<div class="two-col"><div class="fg"><label class="flabel" style="font-size:12px">Unit</label><select class="fsel" id="np-unit" style="font-size:14px;padding:9px 12px"><option>each</option><option>bag</option><option>box</option><option>gallon</option><option>cu yd</option><option>ft</option><option>pair</option></select></div>';
   b+='<div class="fg"><label class="flabel" style="font-size:12px">Storage Location</label><input type="text" class="finput" id="np-loc" placeholder="e.g. Warehouse A, Shelf 3" style="font-size:14px;padding:9px 12px"></div></div>';
-  b+='<div style="display:flex;gap:8px"><button class="btn btn-primary btn-sm" onclick="savePartInv()">Save Part</button><button class="btn btn-ghost btn-sm" onclick="toggleF('add-part-inv')">Cancel</button></div></div></div>';
+  b+='<div style="display:flex;gap:8px"><button class="btn btn-primary btn-sm" onclick="savePartInv()">Save Part</button><button class="btn btn-ghost btn-sm" onclick="toggleF(\'add-part-inv\')">Cancel</button></div></div></div>';
 
   if(lowStock.length>0){
     b+='<div class="alert alert-danger" style="margin-bottom:16px"><span class="alert-icon pulse-red">🚨</span><div><strong>'+lowStock.length+' part'+(lowStock.length>1?'s':'')+' below minimum stock!</strong><div style="margin-top:5px;display:flex;gap:7px;flex-wrap:wrap">';
@@ -2160,8 +2160,8 @@ function buildParts(){
     b+='<div style="font-size:20px;font-weight:800;font-family:var(--mono);color:'+( isLow?'var(--red)':'var(--text)')+'">'+ p.qty+'<span style="font-size:12px;font-weight:500;color:var(--text3)"> '+esc(p.unit)+'</span></div>';
     b+='<div style="font-size:11px;color:var(--text4)">min: '+p.minQty+' · $'+totalVal.toFixed(0)+' val</div>';
     b+='<div style="display:flex;gap:5px;margin-top:6px;justify-content:flex-end">';
-    b+='<button class="btn btn-ghost btn-xs" onclick="adjustStock(''+p.id+'',1)">+</button>';
-    b+='<button class="btn btn-ghost btn-xs" onclick="adjustStock(''+p.id+'',-1)">−</button>';
+    b+='<button class="btn btn-ghost btn-xs" onclick="adjustStock(\''+p.id+'\',1)">+</button>';
+    b+='<button class="btn btn-ghost btn-xs" onclick="adjustStock(\''+p.id+'\',-1)">−</button>';
     b+='</div></div></div>';
   });
   b+='</div></div>';
@@ -2205,8 +2205,8 @@ function buildApprovals(){
       if(r.desc)b+='<p style="font-size:13.5px;color:var(--text2);margin-top:9px;line-height:1.6;white-space:pre-wrap">'+esc(r.desc)+'</p>';
       b+='</div>'+ptag(r.prio)+'</div>';
       b+='<div style="display:flex;gap:8px;flex-wrap:wrap">';
-      b+='<button class="btn btn-success btn-sm" onclick="approveReq(''+r.id+'')">✓ Approve → Create WO</button>';
-      b+='<button class="btn btn-danger btn-sm" onclick="declineReq(''+r.id+'')">✕ Decline</button>';
+      b+='<button class="btn btn-success btn-sm" onclick="approveReq(\''+r.id+'\')">✓ Approve → Create WO</button>';
+      b+='<button class="btn btn-danger btn-sm" onclick="declineReq(\''+r.id+'\')">✕ Decline</button>';
       b+='</div></div>';
     });
   }
@@ -2259,7 +2259,7 @@ function openPublicForm(){
   html+='<div class="fg"><label class="flabel">Priority</label>';
   html+='<div class="prio-grid" id="pub-prio-grid">';
   ['low','medium','high','critical'].forEach(function(p){
-    html+='<button class="prio-btn'+(p==='medium'?' active-medium':'') +'" id="pprio-'+p+'" onclick="setPubP(''+p+'')">'+esc({low:'Low',medium:'Medium',high:'⚡ High',critical:'🔴 Critical'}[p])+'</button>';
+    html+='<button class="prio-btn'+(p==='medium'?' active-medium':'') +'" id="pprio-'+p+'" onclick="setPubP(\''+p+'\')">'+esc({low:'Low',medium:'Medium',high:'⚡ High',critical:'🔴 Critical'}[p])+'</button>';
   });
   html+='</div></div>';
   html+='<div id="pub-err" class="hidden"></div>';
@@ -2296,13 +2296,13 @@ function buildPlanner(){
     b+='<div style="display:flex;flex-wrap:wrap;gap:9px">';
     unassigned.forEach(function(i){
       var isUrgent=i.prio==='critical'||i.prio==='high';
-      b+='<div style="background:'+(isUrgent?'var(--red-l)':'var(--surface2)')+';border:1px solid '+(isUrgent?'#fca5a5':'var(--border)')+';border-radius:10px;padding:10px 13px;cursor:pointer;max-width:280px;transition:all .15s" onclick="openDetail(''+i.id+'')" onmouseover="this.style.boxShadow='var(--shadow-md)'" onmouseout="this.style.boxShadow=''">';
+      b+='<div style="background:'+(isUrgent?'var(--red-l)':'var(--surface2)')+';border:1px solid '+(isUrgent?'#fca5a5':'var(--border)')+';border-radius:10px;padding:10px 13px;cursor:pointer;max-width:280px;transition:all .15s" onclick="openDetail(\''+i.id+'\')" onmouseover="this.style.boxShadow=\'var(--shadow-md)\'" onmouseout="this.style.boxShadow=\'\'">';
       b+=ptag(i.prio)+' ';
       b+='<div style="font-weight:600;font-size:13px;margin:5px 0 3px">'+esc(i.summary.slice(0,48))+(i.summary.length>48?'…':'')+'</div>';
       b+='<div style="font-size:11.5px;color:var(--text3);margin-bottom:8px">🗺 '+esc(aName(i.asset))+'</div>';
       b+='<div style="display:flex;gap:5px;flex-wrap:wrap">';
       DB.staff.filter(function(ss){return ss.role==='technician'||ss.role==='supervisor';}).forEach(function(ss){
-        b+='<button class="btn btn-xs btn-ghost" onclick="event.stopPropagation();qAssign(''+i.id+'',''+ss.id+'')">→ '+esc(ss.name.split(' ')[0])+'</button>';
+        b+='<button class="btn btn-xs btn-ghost" onclick="event.stopPropagation();qAssign(\''+i.id+'\',\''+ss.id+'\')">→ '+esc(ss.name.split(' ')[0])+'</button>';
       });
       b+='</div></div>';
     });
@@ -2331,7 +2331,7 @@ function buildPlanner(){
     tasks.forEach(function(i){
       var cls=i.prio==='critical'?'crit-t':i.prio==='high'?'high-t':'';
       var bgs={critical:'var(--red-l)',high:'var(--amber-l)',medium:'var(--brand-l)',low:'var(--surface2)'};
-      b+='<div style="background:'+(bgs[i.prio]||'var(--surface2)')+';border:1px solid var(--border);border-radius:8px;padding:9px 12px;cursor:pointer;display:flex;align-items:center;gap:8px;transition:all .14s" onclick="openDetail(''+i.id+'')" onmouseover="this.style.boxShadow='var(--shadow-md)'" onmouseout="this.style.boxShadow=''">';
+      b+='<div style="background:'+(bgs[i.prio]||'var(--surface2)')+';border:1px solid var(--border);border-radius:8px;padding:9px 12px;cursor:pointer;display:flex;align-items:center;gap:8px;transition:all .14s" onclick="openDetail(\''+i.id+'\')" onmouseover="this.style.boxShadow=\'var(--shadow-md)\'" onmouseout="this.style.boxShadow=\'\'">';
       b+='<span style="font-size:15px">'+(i.prio==='critical'?'🔴':i.prio==='high'?'⚡':'📋')+'</span>';
       b+='<div style="flex:1;min-width:0"><div style="font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(i.summary)+'</div>';
       b+='<div style="font-size:11.5px;color:var(--text3)">'+badge(i.status)+' · '+esc(aName(i.asset))+'</div></div>';
@@ -2369,7 +2369,7 @@ function buildKanban(){
     var iss=DB.issues.filter(function(i){return i.status===s;});
     b+='<div class="kanban-col"><div class="kanban-col-hdr"><span>'+SL[s]+'</span><span style="background:var(--border);padding:1px 7px;border-radius:11px;font-size:11px;font-weight:700;color:var(--text)">'+iss.length+'</span></div>';
     iss.forEach(function(i){
-      b+='<div class="kanban-card" onclick="openDetail(''+i.id+'')" style="border-left:3px solid '+(i.prio==='critical'?'var(--red)':i.prio==='high'?'var(--amber)':'var(--border2)')+';">';
+      b+='<div class="kanban-card" onclick="openDetail(\''+i.id+'\')" style="border-left:3px solid '+(i.prio==='critical'?'var(--red)':i.prio==='high'?'var(--amber)':'var(--border2)')+';">';
       b+='<div style="display:flex;gap:5px;margin-bottom:5px;flex-wrap:wrap">'+ptag(i.prio)+'</div>';
       b+='<div style="font-weight:600;margin-bottom:4px;font-size:13px;line-height:1.4">'+esc(i.summary.slice(0,60))+(i.summary.length>60?'…':'')+'</div>';
       b+='<div style="font-size:11.5px;color:var(--text3)">📍 '+esc(aName(i.asset))+'</div>';
@@ -2398,8 +2398,8 @@ function buildIssuesHeader(){
   });
   b+='</div>';
   b+='<div style="display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-bottom:14px">';
-  b+='<button class="btn btn-ghost btn-sm" onclick="issView='list';renderPage('issues')" style="'+(issView==='list'?'border-color:var(--brand2);color:var(--brand2)':'')+'">☰ List</button>';
-  b+='<button class="btn btn-ghost btn-sm" onclick="issView='kanban';renderPage('issues')" style="'+(issView==='kanban'?'border-color:var(--brand2);color:var(--brand2)':'')+'">⬛ Kanban</button>';
+  b+='<button class="btn btn-ghost btn-sm" onclick="issView=\'list\';renderPage(\'issues\')" style="'+(issView==='list'?'border-color:var(--brand2);color:var(--brand2)':'')+'">☰ List</button>';
+  b+='<button class="btn btn-ghost btn-sm" onclick="issView=\'kanban\';renderPage(\'issues\')" style="'+(issView==='kanban'?'border-color:var(--brand2);color:var(--brand2)':'')+'">⬛ Kanban</button>';
   b+='</div>';
   return b;
 }
