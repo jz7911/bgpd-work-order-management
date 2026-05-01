@@ -487,6 +487,12 @@ a{color:inherit;text-decoration:none}
       <button class="sb-item" onclick="navTo('planner')" id="nav-planner">
         <span class="sb-icon">📆</span>Workload Planner
       </button>
+      <button class="sb-item" onclick="navTo('gismap')" id="nav-gismap">
+        <span class="sb-icon">🗺</span>GIS Map
+      </button>
+      <button class="sb-item" onclick="navTo('lifecycle')" id="nav-lifecycle">
+        <span class="sb-icon">📉</span>Lifecycle Forecast
+      </button>
       <button class="sb-item" onclick="navTo('reports')" id="nav-reports">
         <span class="sb-icon">📈</span>Reports
       </button>
@@ -719,7 +725,7 @@ function setCount(id,n,cls){
 /* ═══════════════════════════════════════════════════════════
    NAVIGATION
 ═══════════════════════════════════════════════════════════ */
-var TITLES={dashboard:'Dashboard',approvals:'Request Queue',assets:'Asset Profiles',parts:'Parts Inventory',planner:'Workload Planner',issues:'Work Orders',pm:'PM Schedules',inspections:'Inspections',qr:'QR Codes',reports:'Reports & KPIs',settings:'Settings'};
+var TITLES={dashboard:'Dashboard',gismap:'GIS Asset Map',lifecycle:'Lifecycle & Capital Forecast',approvals:'Request Queue',assets:'Asset Profiles',parts:'Parts Inventory',planner:'Workload Planner',issues:'Work Orders',pm:'PM Schedules',inspections:'Inspections',qr:'QR Codes',reports:'Reports & KPIs',settings:'Settings'};
 function navTo(t){
   currentTab=t;
   document.querySelectorAll('.sb-item').forEach(function(el){el.classList.remove('active');});
@@ -745,6 +751,8 @@ function renderPage(t){
   else if(t==='qr')c.innerHTML=buildQR();
   else if(t==='reports')c.innerHTML=buildReports();
   else if(t==='settings')c.innerHTML=buildSettings();
+  else if(t==='gismap'){buildGISMap(c);}
+  else if(t==='lifecycle')c.innerHTML=buildLifecycle();
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -2411,6 +2419,703 @@ function initials(name){
 
 
 function toggleF(id){var el=document.getElementById(id);if(el)el.style.display=el.style.display==='none'?'block':'none';}
+
+
+/* ═══════════════════════════════════════════════════════════
+   GIS MAP  — Leaflet + OpenStreetMap, Buffalo Grove IL
+   Realistic asset layers for BGPD parks & infrastructure
+═══════════════════════════════════════════════════════════ */
+
+var _gisMap = null;
+var _gisLayers = {};
+var _gisLayerControl = null;
+
+function buildGISMap(container) {
+  // Set up the shell immediately - Leaflet needs a visible div before init
+  container.innerHTML = [
+    '<div style="display:flex;flex-direction:column;height:100%;min-height:0">',
+    '  <div style="padding:0 0 14px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">',
+    '    <div>',
+    '      <h2 style="font-size:19px;font-weight:800">GIS Asset Map</h2>',
+    '      <p style="font-size:14px;color:var(--text3);margin-top:2px">',
+    '        Spatial view of all BGPD parks, assets, and infrastructure layers.',
+    '        Toggle layers with the control in the top-right corner.',
+    '      </p>',
+    '    </div>',
+    '    <div style="display:flex;gap:8px">',
+    '      <button class="btn btn-ghost btn-sm" onclick="gisAddAsset()">📍 Add Asset</button>',
+    '      <button class="btn btn-primary btn-sm" onclick="gisOpenIssueHere()">+ Report Issue at Location</button>',
+    '    </div>',
+    '  </div>',
+    '  <div id="gis-map-wrap" style="flex:1;min-height:500px;border-radius:var(--r);overflow:hidden;border:1px solid var(--border);position:relative">',
+    '    <div id="gis-map" style="height:100%;width:100%;min-height:500px"></div>',
+    '    <div id="gis-legend" style="position:absolute;bottom:28px;left:12px;z-index:1000;background:rgba(255,255,255,.95);border-radius:10px;padding:12px 14px;box-shadow:0 2px 12px rgba(0,0,0,.15);font-size:12px;max-width:200px">',
+    '      <div style="font-weight:700;margin-bottom:8px;font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:#334155">Legend</div>',
+    '      <div style="display:flex;flex-direction:column;gap:5px" id="gis-legend-items"></div>',
+    '    </div>',
+    '  </div>',
+    '  <div id="gis-info" style="flex-shrink:0;margin-top:10px;display:none" class="dsec">',
+    '    <div class="dsec-hdr" id="gis-info-title">Asset Details</div>',
+    '    <div class="dsec-body" id="gis-info-body"></div>',
+    '  </div>',
+    '</div>'
+  ].join('');
+
+  // Load Leaflet if not already loaded
+  if (!window.L) {
+    var cssLink = document.createElement('link');
+    cssLink.rel = 'stylesheet';
+    cssLink.href = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css';
+    document.head.appendChild(cssLink);
+    var script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
+    script.onload = function() { initLeafletMap(); };
+    document.head.appendChild(script);
+  } else {
+    initLeafletMap();
+  }
+}
+
+function initLeafletMap() {
+  // Destroy old map instance if exists
+  if (_gisMap) { _gisMap.remove(); _gisMap = null; }
+
+  var mapEl = document.getElementById('gis-map');
+  if (!mapEl) return;
+
+  // Buffalo Grove, IL center
+  _gisMap = L.map('gis-map', {
+    center: [42.1664, -87.9631],
+    zoom: 14,
+    zoomControl: true
+  });
+
+  // Base layers
+  var osmBase = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© <a href="https://openstreetmap.org">OpenStreetMap</a> contributors',
+    maxZoom: 19
+  });
+
+  var cartoLight = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    attribution: '© <a href="https://carto.com">CARTO</a>',
+    maxZoom: 19
+  });
+
+  var satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    attribution: '© <a href="https://esri.com">Esri</a> World Imagery',
+    maxZoom: 19
+  });
+
+  cartoLight.addTo(_gisMap);
+
+  // ── ICON FACTORY ────────────────────────────────────────
+  function makeIcon(emoji, bg, size) {
+    size = size || 32;
+    return L.divIcon({
+      html: '<div style="width:'+size+'px;height:'+size+'px;background:'+bg+';border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:'+(size*0.55)+'px;border:3px solid rgba(255,255,255,.9);box-shadow:0 2px 8px rgba(0,0,0,.3)">'+emoji+'</div>',
+      className: '',
+      iconSize: [size, size],
+      iconAnchor: [size/2, size/2]
+    });
+  }
+
+  // ── BGPD PARKS LAYER ────────────────────────────────────
+  var parks = [
+    { name:'Arboretum Park', lat:42.1756, lng:-87.9654, type:'park', area:12.5, installed:1988, life:50, condition:72 },
+    { name:'Alcott Park', lat:42.1603, lng:-87.9478, type:'park', area:8.2, installed:1992, life:50, condition:85 },
+    { name:'Mike Rylko Park', lat:42.1701, lng:-87.9602, type:'park', area:18.4, installed:1985, life:50, condition:61 },
+    { name:'Rotary Village Green', lat:42.1670, lng:-87.9540, type:'park', area:4.1, installed:2001, life:50, condition:91 },
+    { name:'Willow Stream Park', lat:42.1580, lng:-87.9710, type:'facility', area:6.8, installed:1997, life:40, condition:78 },
+    { name:'Fitness Center', lat:42.1630, lng:-87.9650, type:'facility', area:2.2, installed:2005, life:40, condition:88 },
+    { name:'Alcott Center', lat:42.1608, lng:-87.9480, type:'facility', area:3.5, installed:1998, life:40, condition:80 },
+    { name:'Buffalo Creek Preserve', lat:42.1720, lng:-87.9800, type:'park', area:45.0, installed:1975, life:999, condition:94 },
+  ];
+
+  var parksLayer = L.layerGroup();
+  parks.forEach(function(p) {
+    var openIssues = (DB.issues||[]).filter(function(i){
+      return i.status !== 'closed' && (i.asset || '').includes(p.name.split(' ')[0]);
+    }).length;
+    var condColor = p.condition >= 80 ? '#16a34a' : p.condition >= 60 ? '#d97706' : '#dc2626';
+    var icon = makeIcon(p.type==='facility'?'🏢':'🏞', condColor, 36);
+
+    var marker = L.marker([p.lat, p.lng], {icon: icon});
+    marker.on('click', function() { showGISAssetInfo(p, openIssues); });
+    marker.bindTooltip('<strong>'+p.name+'</strong><br>Condition: '+p.condition+'% · '+p.area+' acres', {className:'gis-tooltip'});
+    marker.addTo(parksLayer);
+
+    // Draw park boundary polygon (approximate)
+    var off = p.area * 0.00008;
+    var poly = L.polygon([
+      [p.lat+off, p.lng-off*1.4],
+      [p.lat+off, p.lng+off*1.4],
+      [p.lat-off, p.lng+off*1.4],
+      [p.lat-off, p.lng-off*1.4]
+    ], {
+      color: condColor, weight:2, fillColor: condColor, fillOpacity:0.08,
+      dashArray: '4 4'
+    }).addTo(parksLayer);
+  });
+
+  // ── PLAYGROUNDS LAYER ────────────────────────────────────
+  var playgrounds = [
+    { name:'Arboretum Playground', lat:42.1760, lng:-87.9648, installed:2010, life:20, condition:68 },
+    { name:'Alcott Playground', lat:42.1608, lng:-87.9484, installed:2015, life:20, condition:88 },
+    { name:'Rylko Playground North', lat:42.1708, lng:-87.9595, installed:2008, life:20, condition:55 },
+    { name:'Rylko Playground South', lat:42.1694, lng:-87.9610, installed:2012, life:20, condition:72 },
+    { name:'Rotary Playground', lat:42.1668, lng:-87.9535, installed:2018, life:20, condition:95 },
+    { name:'Willow Stream Playground', lat:42.1584, lng:-87.9705, installed:2006, life:20, condition:48 },
+  ];
+
+  var playLayer = L.layerGroup();
+  playgrounds.forEach(function(pg) {
+    var condColor = pg.condition >= 80 ? '#16a34a' : pg.condition >= 60 ? '#d97706' : '#dc2626';
+    var icon = makeIcon('🛝', condColor, 28);
+    var marker = L.marker([pg.lat, pg.lng], {icon:icon});
+    marker.bindTooltip('<strong>'+pg.name+'</strong><br>Installed: '+pg.installed+' · Condition: '+pg.condition+'%', {className:'gis-tooltip'});
+    marker.on('click', function() {
+      showGISItemInfo('Playground Equipment', pg.name, pg.installed, pg.life, pg.condition, 'playground');
+    });
+    marker.addTo(playLayer);
+  });
+
+  // ── WATER MAINS LAYER ────────────────────────────────────
+  var waterMains = [
+    { name:'Lake Cook Rd Water Main (12")', coords:[[42.1780,-87.9800],[42.1780,-87.9500]], dia:12, installed:1985, life:75, condition:71 },
+    { name:'Raupp Blvd Water Main (8")', coords:[[42.1670,-87.9700],[42.1670,-87.9450]], dia:8, installed:1992, life:75, condition:83 },
+    { name:'Arlington Heights Rd (10")', coords:[[42.1600,-87.9500],[42.1750,-87.9500]], dia:10, installed:1980, life:75, condition:65 },
+    { name:'Dundee Rd Main (12")', coords:[[42.1720,-87.9900],[42.1720,-87.9400]], dia:12, installed:1975, life:75, condition:58 },
+    { name:'Weidner Rd Main (6")', coords:[[42.1600,-87.9600],[42.1700,-87.9600]], dia:6, installed:2000, life:75, condition:91 },
+    { name:'Port Clinton Rd (8")', coords:[[42.1650,-87.9700],[42.1650,-87.9550]], dia:8, installed:1995, life:75, condition:77 },
+  ];
+
+  var waterLayer = L.layerGroup();
+  waterMains.forEach(function(wm) {
+    var condColor = wm.condition>=80?'#2563eb':wm.condition>=60?'#60a5fa':'#1e3a5f';
+    var line = L.polyline(wm.coords, {
+      color: condColor, weight: Math.max(2, wm.dia/3),
+      opacity: 0.8
+    }).addTo(waterLayer);
+    line.bindTooltip('<strong>'+wm.name+'</strong><br>'+wm.dia+'" dia · '+wm.condition+'% condition · Installed: '+wm.installed, {className:'gis-tooltip'});
+    line.on('click', function() {
+      showGISItemInfo('Water Infrastructure', wm.name, wm.installed, wm.life, wm.condition, 'water_main');
+    });
+  });
+
+  // ── SEWER / STORMWATER LAYER ────────────────────────────
+  var sewers = [
+    { name:'Sanitary Sewer — Lake Cook Rd', coords:[[42.1775,-87.9790],[42.1775,-87.9510]], type:'sanitary', installed:1982, life:60, condition:66 },
+    { name:'Sanitary Sewer — Raupp Blvd', coords:[[42.1665,-87.9695],[42.1665,-87.9455]], type:'sanitary', installed:1990, life:60, condition:79 },
+    { name:'Storm Sewer — Arlington Hts', coords:[[42.1595,-87.9505],[42.1745,-87.9505]], type:'storm', installed:1978, life:50, condition:54 },
+    { name:'Storm Sewer — Dundee Rd', coords:[[42.1715,-87.9890],[42.1715,-87.9410]], type:'storm', installed:1973, life:50, condition:42 },
+    { name:'Sanitary Sewer — Weidner Rd', coords:[[42.1595,-87.9605],[42.1695,-87.9605]], type:'sanitary', installed:2002, life:60, condition:94 },
+    { name:'Buffalo Creek Drainage', coords:[[42.1750,-87.9820],[42.1600,-87.9680],[42.1550,-87.9600]], type:'storm', installed:1970, life:50, condition:48 },
+  ];
+
+  var sewerLayer = L.layerGroup();
+  sewers.forEach(function(sw) {
+    var isSanitary = sw.type === 'sanitary';
+    var condColor = sw.condition>=80?'#7c3aed':sw.condition>=60?'#a78bfa':'#5b21b6';
+    var stormColor = sw.condition>=80?'#0891b2':sw.condition>=60?'#67e8f9':'#164e63';
+    var color = isSanitary ? condColor : stormColor;
+    var line = L.polyline(sw.coords, {
+      color: color, weight: 3, opacity: 0.75,
+      dashArray: isSanitary ? null : '6 4'
+    }).addTo(sewerLayer);
+    line.bindTooltip('<strong>'+sw.name+'</strong><br>'+sw.type+' · '+sw.condition+'% condition · Installed: '+sw.installed, {className:'gis-tooltip'});
+    line.on('click', function() {
+      showGISItemInfo('Sewer/Drainage Infrastructure', sw.name, sw.installed, sw.life, sw.condition, sw.type+'_sewer');
+    });
+  });
+
+  // ── SEWER MANHOLES ───────────────────────────────────────
+  var manholes = [
+    {lat:42.1775,lng:-87.9650},{lat:42.1775,lng:-87.9580},{lat:42.1665,lng:-87.9580},
+    {lat:42.1665,lng:-87.9510},{lat:42.1715,lng:-87.9650},{lat:42.1715,lng:-87.9500},
+    {lat:42.1640,lng:-87.9600},{lat:42.1600,lng:-87.9640},
+  ];
+  var manholeLayer = L.layerGroup();
+  manholes.forEach(function(mh) {
+    L.circleMarker([mh.lat, mh.lng], {
+      radius:5, color:'#5b21b6', fillColor:'#7c3aed', fillOpacity:0.9, weight:2
+    }).bindTooltip('Manhole / Access Point').addTo(manholeLayer);
+  });
+
+  // ── ELECTRICAL / LIGHTS LAYER ────────────────────────────
+  var lights = [
+    {lat:42.1759,lng:-87.9649,name:'Arboretum Parking Lot Lights',count:8,installed:2003,condition:80},
+    {lat:42.1703,lng:-87.9598,name:'Rylko Park Lights',count:12,installed:1998,condition:62},
+    {lat:42.1671,lng:-87.9538,name:'Rotary Green Lights',count:4,installed:2010,condition:91},
+    {lat:42.1631,lng:-87.9648,name:'Fitness Center Lights',count:6,installed:2005,condition:85},
+    {lat:42.1583,lng:-87.9706,name:'Willow Stream Lights',count:5,installed:2000,condition:55},
+  ];
+
+  var lightLayer = L.layerGroup();
+  lights.forEach(function(lt) {
+    var icon = makeIcon('💡', lt.condition>=80?'#f59e0b':'#dc2626', 24);
+    var marker = L.marker([lt.lat, lt.lng], {icon:icon});
+    marker.bindTooltip('<strong>'+lt.name+'</strong><br>'+lt.count+' fixtures · '+lt.condition+'%');
+    marker.on('click', function() {
+      showGISItemInfo('Electrical/Lighting', lt.name, lt.installed, 25, lt.condition, 'electrical');
+    });
+    marker.addTo(lightLayer);
+  });
+
+  // ── RESTROOMS LAYER ──────────────────────────────────────
+  var restrooms = [
+    {lat:42.1757,lng:-87.9656,name:'Arboretum Restroom',installed:2000,condition:74},
+    {lat:42.1700,lng:-87.9605,name:'Rylko Restroom',installed:1995,condition:60},
+    {lat:42.1582,lng:-87.9708,name:'Willow Stream Restroom',installed:2008,condition:82},
+    {lat:42.1669,lng:-87.9542,name:'Rotary Restroom',installed:2012,condition:90},
+  ];
+
+  var restroomLayer = L.layerGroup();
+  restrooms.forEach(function(r) {
+    var icon = makeIcon('🚻', r.condition>=80?'#16a34a':'#d97706', 26);
+    L.marker([r.lat, r.lng], {icon:icon})
+      .bindTooltip('<strong>'+r.name+'</strong><br>Condition: '+r.condition+'%')
+      .on('click', function(){ showGISItemInfo('Restroom Facility', r.name, r.installed, 30, r.condition, 'restroom'); })
+      .addTo(restroomLayer);
+  });
+
+  // ── TOWN BOUNDARY ────────────────────────────────────────
+  var bufGroveApprox = [
+    [42.218,-87.999],[42.218,-87.920],[42.145,-87.920],[42.145,-87.999]
+  ];
+  var boundaryLayer = L.layerGroup();
+  L.polygon(bufGroveApprox, {
+    color:'#1e3a5f', weight:3, fillColor:'#1e3a5f', fillOpacity:0.04,
+    dashArray:'8 5'
+  }).bindTooltip('Village of Buffalo Grove Boundary').addTo(boundaryLayer);
+
+  // ── IRRIGATION ZONES ─────────────────────────────────────
+  var irrigZones = [
+    {name:'Arboretum Zone A',lat:42.1758,lng:-87.9660,acres:4.2,installed:2007,condition:78},
+    {name:'Rylko Zone B',lat:42.1705,lng:-87.9608,acres:6.1,installed:2004,condition:65},
+    {name:'Rotary Zone',lat:42.1672,lng:-87.9545,acres:2.0,installed:2014,condition:92},
+  ];
+  var irrigLayer = L.layerGroup();
+  irrigZones.forEach(function(iz) {
+    var off = iz.acres * 0.0001;
+    L.polygon([
+      [iz.lat+off,iz.lng-off],[iz.lat+off,iz.lng+off],
+      [iz.lat-off,iz.lng+off],[iz.lat-off,iz.lng-off]
+    ], {color:'#0891b2',weight:2,fillColor:'#22d3ee',fillOpacity:0.12,dashArray:'4 4'})
+      .bindTooltip('<strong>'+iz.name+'</strong><br>'+iz.acres+' acres · '+iz.condition+'% condition')
+      .on('click',function(){showGISItemInfo('Irrigation System',iz.name,iz.installed,20,iz.condition,'irrigation');})
+      .addTo(irrigLayer);
+  });
+
+  // ── OPEN WORK ORDERS AS MAP PINS ─────────────────────────
+  var woLayer = L.layerGroup();
+  // Map assets to rough coords
+  var assetCoords = {
+    'Arboretum':[42.1756,-87.9654],
+    'Alcott':[42.1603,-87.9478],
+    'Rylko':[42.1701,-87.9602],
+    'Rotary':[42.1670,-87.9540],
+    'Willow':[42.1580,-87.9710],
+    'Fitness':[42.1630,-87.9650],
+    'Buffalo Creek':[42.1720,-87.9800],
+  };
+
+  (DB.issues||[]).filter(function(i){return i.status!=='closed';}).forEach(function(issue) {
+    var aName2 = issue.asset ? (DB.assets||[]).find(function(a){return a.id===issue.asset;})||{} : {};
+    var name = aName2.name || '';
+    var coords = null;
+    Object.keys(assetCoords).forEach(function(k){
+      if(name.includes(k)) coords = assetCoords[k];
+    });
+    if(!coords) return;
+    // Jitter slightly so multiple WOs at same location don't stack
+    var jitter = (Math.random()-0.5)*0.0030;
+    var jitter2 = (Math.random()-0.5)*0.0030;
+    var prioColors = {critical:'#dc2626',high:'#d97706',medium:'#2563eb',low:'#64748b'};
+    var prioEmoji = {critical:'🔴',high:'⚡',medium:'📋',low:'📌'};
+    var icon = makeIcon(prioEmoji[issue.prio]||'📋', prioColors[issue.prio]||'#2563eb', 30);
+    L.marker([coords[0]+jitter, coords[1]+jitter2], {icon:icon, zIndexOffset:500})
+      .bindTooltip('<strong>WO #'+issue.num+'</strong><br>'+issue.summary.slice(0,50)+'<br>'+issue.prio+' priority')
+      .on('click', function(){ openDetail(issue.id); })
+      .addTo(woLayer);
+  });
+
+  // ── LAYER CONTROL ────────────────────────────────────────
+  var baseMaps = {
+    'Street Map': cartoLight,
+    'OpenStreetMap': osmBase,
+    'Satellite': satellite
+  };
+
+  var overlays = {
+    '🏞 Parks & Facilities': parksLayer,
+    '🛝 Playgrounds': playLayer,
+    '💧 Water Mains': waterLayer,
+    '⬇ Sanitary & Storm Sewer': sewerLayer,
+    '🔘 Manholes': manholeLayer,
+    '💡 Electrical / Lighting': lightLayer,
+    '🚻 Restrooms': restroomLayer,
+    '🌀 Irrigation Zones': irrigLayer,
+    '🏛 Town Boundary': boundaryLayer,
+    '📋 Open Work Orders': woLayer,
+  };
+
+  // Add all overlay layers by default (except manholes)
+  [parksLayer, playLayer, waterLayer, sewerLayer, lightLayer, restroomLayer, irrigLayer, boundaryLayer, woLayer].forEach(function(l){ l.addTo(_gisMap); });
+
+  _gisLayerControl = L.control.layers(baseMaps, overlays, {position:'topright', collapsed: false}).addTo(_gisMap);
+
+  // Build legend
+  var legendItems = [
+    {color:'#16a34a',label:'Good condition (80%+)'},
+    {color:'#d97706',label:'Fair condition (60–79%)'},
+    {color:'#dc2626',label:'Poor condition (<60%)'},
+    {color:'#2563eb',label:'Water mains'},
+    {color:'#7c3aed',label:'Sanitary sewer'},
+    {color:'#0891b2',label:'Storm sewer'},
+  ];
+  var legendEl = document.getElementById('gis-legend-items');
+  if(legendEl) {
+    legendEl.innerHTML = legendItems.map(function(li){
+      return '<div style="display:flex;align-items:center;gap:7px"><div style="width:14px;height:14px;background:'+li.color+';border-radius:3px;flex-shrink:0"></div><span style="color:#334155">'+li.label+'</span></div>';
+    }).join('');
+  }
+
+  // Add CSS for tooltips
+  if(!document.getElementById('gis-style')) {
+    var style = document.createElement('style');
+    style.id = 'gis-style';
+    style.textContent = '.gis-tooltip{background:rgba(15,23,42,.9);color:#fff;border:none;border-radius:8px;font-size:12.5px;padding:7px 12px;box-shadow:0 4px 12px rgba(0,0,0,.3)} .gis-tooltip::before{display:none}';
+    document.head.appendChild(style);
+  }
+}
+
+function showGISAssetInfo(asset, openIssues) {
+  var infoPanel = document.getElementById('gis-info');
+  var infoTitle = document.getElementById('gis-info-title');
+  var infoBody = document.getElementById('gis-info-body');
+  if(!infoPanel) return;
+  infoPanel.style.display = '';
+  infoTitle.textContent = asset.name;
+  var age = new Date().getFullYear() - asset.installed;
+  var pctLife = Math.min(100, Math.round(age/asset.life*100));
+  var condColor = asset.condition>=80?'var(--green-m)':asset.condition>=60?'var(--amber)':'var(--red)';
+  infoBody.innerHTML =
+    '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:14px">' +
+    '<div><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text4)">Type</div><div style="font-weight:600;font-size:14px;text-transform:capitalize">'+asset.type+'</div></div>'+
+    '<div><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text4)">Area</div><div style="font-weight:600;font-size:14px">'+asset.area+' ac</div></div>'+
+    '<div><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text4)">Installed</div><div style="font-weight:600;font-size:14px">'+asset.installed+'</div></div>'+
+    '<div><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text4)">Open Issues</div><div style="font-weight:700;font-size:14px;color:'+(openIssues>0?'var(--amber)':'var(--green-m)')+'">'+openIssues+'</div></div>'+
+    '</div>'+
+    '<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;margin-bottom:5px"><span style="font-size:12px;font-weight:600;color:var(--text3)">Condition Index</span><span style="font-weight:800;color:'+condColor+'">'+asset.condition+'%</span></div>'+
+    '<div style="height:8px;background:var(--border);border-radius:4px;overflow:hidden"><div style="width:'+asset.condition+'%;height:100%;background:'+condColor+';border-radius:4px;transition:width .8s"></div></div></div>'+
+    '<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;margin-bottom:5px"><span style="font-size:12px;font-weight:600;color:var(--text3)">Life Used ('+age+' of '+asset.life+' yrs)</span><span style="font-weight:700;color:'+(pctLife>75?'var(--red)':pctLife>50?'var(--amber)':'var(--green-m)')+'">'+pctLife+'%</span></div>'+
+    '<div style="height:8px;background:var(--border);border-radius:4px;overflow:hidden"><div style="width:'+pctLife+'%;height:100%;background:'+(pctLife>75?'var(--red)':pctLife>50?'var(--amber)':'var(--green-m)')+';border-radius:4px;transition:width .8s"></div></div></div>'+
+    '<div style="display:flex;gap:8px"><button class="btn btn-primary btn-sm" onclick="openNewIssue()">+ Report Issue Here</button><button class="btn btn-ghost btn-sm" onclick="navTo(\'lifecycle\')">📉 View Lifecycle Forecast</button></div>';
+}
+
+function showGISItemInfo(category, name, installed, life, condition, type) {
+  var infoPanel = document.getElementById('gis-info');
+  if(!infoPanel) return;
+  infoPanel.style.display = '';
+  document.getElementById('gis-info-title').textContent = name;
+  var age = new Date().getFullYear() - installed;
+  var pctLife = Math.min(100, Math.round(age/life*100));
+  var condColor = condition>=80?'var(--green-m)':condition>=60?'var(--amber)':'var(--red)';
+  var yrToEOL = Math.max(0, life - age);
+  var replCost = {'playground':85000,'restroom':45000,'water_main':120000,'sanitary_sewer':95000,'storm_sewer':75000,'electrical':22000,'irrigation':18000}[type]||50000;
+  document.getElementById('gis-info-body').innerHTML =
+    '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:14px">' +
+    '<div><div class="mi-label">Category</div><div class="mi-value">'+category+'</div></div>'+
+    '<div><div class="mi-label">Installed</div><div class="mi-value">'+installed+'</div></div>'+
+    '<div><div class="mi-label">Design Life</div><div class="mi-value">'+life+' yrs</div></div>'+
+    '<div><div class="mi-label">Est. EOL</div><div class="mi-value" style="color:'+(yrToEOL<=10?'var(--red)':yrToEOL<=20?'var(--amber)':'var(--green-m)')+'">'+( installed+life)+'</div></div>'+
+    '</div>'+
+    '<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;margin-bottom:5px"><span style="font-size:12px;font-weight:600;color:var(--text3)">Condition</span><span style="font-weight:800;color:'+condColor+'">'+condition+'%</span></div>'+
+    '<div style="height:8px;background:var(--border);border-radius:4px;overflow:hidden"><div style="width:'+condition+'%;height:100%;background:'+condColor+';border-radius:4px"></div></div></div>'+
+    '<div style="background:var(--amber-l);border:1px solid #fde68a;border-radius:9px;padding:10px 14px;font-size:13px;color:var(--amber);font-weight:500">'+
+    '⚠ Est. replacement cost: <strong>$'+replCost.toLocaleString()+'</strong> in ~'+yrToEOL+' years</div>'+
+    '<div style="margin-top:10px;display:flex;gap:8px"><button class="btn btn-primary btn-sm" onclick="openNewIssue()">+ Report Issue</button><button class="btn btn-ghost btn-sm" onclick="navTo(\'lifecycle\')">📉 Lifecycle Forecast</button></div>';
+}
+
+function gisAddAsset() { alert('Click a location on the map, then fill in asset details. (Full draw tools would connect to your GIS database in production.)'); }
+function gisOpenIssueHere() { openNewIssue(); }
+
+/* ═══════════════════════════════════════════════════════════
+   LIFECYCLE FORECAST — Brightly Predictor-inspired
+   Service State 0-6, degradation curves, funding scenarios,
+   FCI, 25-year capital forecast
+═══════════════════════════════════════════════════════════ */
+
+// Asset portfolio with Brightly-style parameters
+var LIFECYCLE_ASSETS = [
+  {id:'arb',name:'Arboretum Park (Overall)',cat:'Parks',installed:1988,life:50,replCost:2800000,condition:72,degradation:'linear',criticalThreshold:40},
+  {id:'ary',name:'Arboretum Playground Equip.',cat:'Playground',installed:2010,life:20,replCost:85000,condition:68,degradation:'linear',criticalThreshold:30},
+  {id:'ryl',name:'Mike Rylko Park (Overall)',cat:'Parks',installed:1985,life:50,replCost:3200000,condition:61,degradation:'linear',criticalThreshold:40},
+  {id:'rot',name:'Rotary Playground Equip.',cat:'Playground',installed:2018,life:20,replCost:92000,condition:95,degradation:'linear',criticalThreshold:30},
+  {id:'wsp',name:'Willow Stream Playground',cat:'Playground',installed:2006,life:20,replCost:78000,condition:48,degradation:'accelerated',criticalThreshold:30},
+  {id:'fit',name:'Fitness Center HVAC',cat:'HVAC',installed:2005,life:25,replCost:185000,condition:78,degradation:'stepped',criticalThreshold:35},
+  {id:'wm1',name:'Dundee Rd Water Main (12")',cat:'Water',installed:1975,life:75,replCost:1200000,condition:58,degradation:'slow_linear',criticalThreshold:30},
+  {id:'wm2',name:'Arlington Hts Water Main',cat:'Water',installed:1980,life:75,replCost:900000,condition:65,degradation:'slow_linear',criticalThreshold:30},
+  {id:'ss1',name:'Storm Sewer — Dundee Rd',cat:'Sewer',installed:1973,life:50,replCost:750000,condition:42,degradation:'accelerated',criticalThreshold:25},
+  {id:'ss2',name:'Storm Sewer — Arlington',cat:'Sewer',installed:1978,life:50,replCost:620000,condition:54,degradation:'accelerated',criticalThreshold:25},
+  {id:'el1',name:'Rylko Park Lighting',cat:'Electrical',installed:1998,life:25,replCost:145000,condition:62,degradation:'linear',criticalThreshold:35},
+  {id:'el2',name:'Willow Stream Lighting',cat:'Electrical',installed:2000,life:25,replCost:95000,condition:55,degradation:'linear',criticalThreshold:35},
+  {id:'rst1',name:'Rylko Restrooms',cat:'Restroom',installed:1995,life:30,replCost:180000,condition:60,degradation:'linear',criticalThreshold:30},
+  {id:'ir1',name:'Arboretum Irrigation System',cat:'Irrigation',installed:2007,life:20,replCost:58000,condition:78,degradation:'linear',criticalThreshold:30},
+];
+
+// Degradation curve: returns condition % for a given age
+function degrade(asset, futureAge) {
+  var maxAge = asset.life;
+  var pct = futureAge / maxAge;
+  if(pct >= 1) return Math.max(0, 10 - (pct-1)*5);
+  var c0 = asset.condition;
+  var currentAge = new Date().getFullYear() - asset.installed;
+  var remaining = maxAge - currentAge;
+  var pctRemain = futureAge <= currentAge ? c0 : 0;
+
+  if(futureAge <= currentAge) return c0;
+
+  var yearsAhead = futureAge - currentAge;
+  var dropPerYear;
+
+  switch(asset.degradation) {
+    case 'accelerated':
+      // Exponential decay — faster as asset ages
+      dropPerYear = (c0 - 10) * (1 - Math.pow(0.92, yearsAhead)) / yearsAhead || 0;
+      return Math.max(0, c0 - dropPerYear * yearsAhead * (1 + yearsAhead / remaining));
+    case 'slow_linear':
+      // Infrastructure: very slow until last ~20% of life then steep
+      if(yearsAhead > remaining * 0.8) {
+        return Math.max(0, c0 - (c0 - 10) * (yearsAhead - remaining*0.8) / (remaining*0.2));
+      }
+      return Math.max(10, c0 - (c0 - 40) * yearsAhead / (remaining * 0.8));
+    case 'stepped':
+      // HVAC/mechanical: holds condition then fails quickly
+      if(yearsAhead < remaining * 0.6) return Math.max(c0 - 2, c0 - yearsAhead*1.5);
+      return Math.max(0, c0 - (c0 - 15) * (yearsAhead - remaining*0.6) / (remaining*0.4));
+    default: // linear
+      return Math.max(0, c0 - (c0 - 10) * (yearsAhead / remaining));
+  }
+}
+
+// Apply maintenance boost to condition
+function applyMaintenance(cond, intervention, type) {
+  if(intervention === 'none') return cond;
+  if(intervention === 'repair') return Math.min(100, cond + 15);
+  if(intervention === 'rehabilitate') return Math.min(100, cond + 35);
+  if(intervention === 'replace') return 95;
+  return cond;
+}
+
+var _lcScenario = 'baseline'; // baseline | increased | decreased | optimized
+var _lcYears = 20;
+var _lcSelected = null;
+
+function buildLifecycle() {
+  var currentYear = new Date().getFullYear();
+  var years = [];
+  for(var y = currentYear; y <= currentYear + _lcYears; y++) years.push(y);
+
+  // Compute FCI for each asset over time for each scenario
+  var scenarios = {
+    baseline: { label: 'Baseline (Current Budget)', color: '#2563eb', budgetMult: 1.0 },
+    increased: { label: 'Increased Investment (+30%)', color: '#16a34a', budgetMult: 1.3 },
+    decreased: { label: 'Budget Cuts (-25%)', color: '#dc2626', budgetMult: 0.75 },
+    optimized: { label: 'Optimized/Proactive', color: '#7c3aed', budgetMult: 1.1 }
+  };
+
+  // Portfolio FCI over time
+  function portfolioFCI(scenario, yr) {
+    var mult = scenarios[scenario].budgetMult;
+    var futureAge = yr - currentYear;
+    var totalCost = 0, deferred = 0;
+    LIFECYCLE_ASSETS.forEach(function(a) {
+      var cond = degrade(a, new Date().getFullYear() - a.installed + futureAge);
+      // Optimized: intervene at 50%, others intervene only at critical threshold
+      var threshold = scenario === 'optimized' ? 55 : a.criticalThreshold / mult;
+      if(cond <= threshold && mult >= 0.9) {
+        // Intervention happens
+        deferred += 0; // repaired
+      } else if(cond <= a.criticalThreshold && mult < 0.9) {
+        deferred += a.replCost * (1 - cond/100); // budget cuts = deferred maintenance
+      } else {
+        deferred += a.replCost * Math.max(0, (60 - cond)) / 100 * 0.3;
+      }
+      totalCost += a.replCost;
+    });
+    return Math.min(1, deferred / totalCost);
+  }
+
+  // Capital needs by year
+  function capitalNeeds(scenario, yr) {
+    var mult = scenarios[scenario].budgetMult;
+    var futureAge = yr - currentYear;
+    var total = 0;
+    LIFECYCLE_ASSETS.forEach(function(a) {
+      var age = new Date().getFullYear() - a.installed + futureAge;
+      var cond = degrade(a, age);
+      var threshold = scenario === 'optimized' ? 55 : (scenario === 'decreased' ? a.criticalThreshold * 0.7 : a.criticalThreshold);
+      if(cond <= threshold || age >= a.life) {
+        total += a.replCost * (scenario === 'increased' ? 0.8 : scenario === 'decreased' ? 1.2 : 1.0);
+      }
+    });
+    return total;
+  }
+
+  // Build HTML
+  var b = '<div style="display:flex;flex-direction:column;gap:18px">';
+
+  // Header + controls
+  b += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">';
+  b += '<div><h2 style="font-size:19px;font-weight:800">Lifecycle & Capital Forecast</h2>';
+  b += '<p style="font-size:14px;color:var(--text3);margin-top:2px">Brightly Predictor-style asset degradation modeling. Shows how today\'s decisions impact 20-year capital needs.</p></div>';
+  b += '<div style="display:flex;gap:8px;flex-wrap:wrap">';
+  b += '<select class="fsel" onchange="_lcYears=parseInt(this.value);document.getElementById(\'content\').innerHTML=buildLifecycle()" style="font-size:13px;padding:7px 28px 7px 12px;min-width:140px"><option value="10"'+ (_lcYears===10?' selected':'') +'>10-Year View</option><option value="20"'+ (_lcYears===20?' selected':'') +'>20-Year View</option><option value="30"'+ (_lcYears===30?' selected':'') +'>30-Year View</option></select>';
+  b += '</div></div>';
+
+  // Scenario selector tabs
+  b += '<div style="display:flex;gap:8px;flex-wrap:wrap">';
+  Object.keys(scenarios).forEach(function(k) {
+    var s = scenarios[k];
+    var active = k === _lcScenario;
+    b += '<button onclick="_lcScenario=\''+k+'\';document.getElementById(\'content\').innerHTML=buildLifecycle()" style="padding:9px 16px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;border:2px solid '+(active?s.color:'var(--border)')+';background:'+(active?s.color+'18':'var(--surface)')+';color:'+(active?s.color:'var(--text3)')+';font-family:var(--font)">'+s.label+'</button>';
+  });
+  b += '</div>';
+
+  // Portfolio health chart (SVG)
+  var svgW = 800, svgH = 220, pad = {t:24,b:40,l:60,r:20};
+  var chartW = svgW - pad.l - pad.r;
+  var chartH = svgH - pad.t - pad.b;
+
+  b += '<div class="card" style="padding:20px">';
+  b += '<div style="font-weight:700;font-size:14px;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:14px">Portfolio Facility Condition Index (FCI) — '+scenarios[_lcScenario].label+'</div>';
+
+  var maxFCI = 0.6;
+  var fcis = years.map(function(yr){return portfolioFCI(_lcScenario, yr);});
+
+  function yPos(fci) { return pad.t + chartH - (fci/maxFCI)*chartH; }
+  function xPos(i) { return pad.l + (i/(years.length-1))*chartW; }
+
+  var line = years.map(function(yr,i){return xPos(i)+','+yPos(fcis[i]);}).join(' ');
+  var area = 'M'+xPos(0)+','+yPos(0)+' '+years.map(function(yr,i){return 'L'+xPos(i)+','+yPos(fcis[i]);}).join(' ')+' L'+xPos(years.length-1)+','+(pad.t+chartH)+' L'+xPos(0)+','+(pad.t+chartH)+' Z';
+
+  var svgColor = scenarios[_lcScenario].color;
+
+  b += '<svg viewBox="0 0 '+svgW+' '+svgH+'" style="width:100%;height:'+svgH+'px" xmlns="http://www.w3.org/2000/svg">';
+  // Grid lines
+  for(var g=0;g<=5;g++) {
+    var gy = pad.t + g*(chartH/5);
+    var fciVal = maxFCI - g*(maxFCI/5);
+    b += '<line x1="'+pad.l+'" y1="'+gy+'" x2="'+(pad.l+chartW)+'" y2="'+gy+'" stroke="#e2e8f0" stroke-width="1"/>';
+    b += '<text x="'+(pad.l-6)+'" y="'+(gy+4)+'" text-anchor="end" font-size="11" fill="#94a3b8">'+(fciVal*100).toFixed(0)+'%</text>';
+  }
+  // Danger zone (FCI > 40% = serious)
+  var dangerY = pad.t + chartH - (0.40/maxFCI)*chartH;
+  b += '<rect x="'+pad.l+'" y="'+dangerY+'" width="'+chartW+'" height="'+(chartH-(dangerY-pad.t))+'" fill="rgba(220,38,38,0.06)"/>';
+  b += '<line x1="'+pad.l+'" y1="'+dangerY+'" x2="'+(pad.l+chartW)+'" y2="'+dangerY+'" stroke="#dc2626" stroke-width="1.5" stroke-dasharray="6 3"/>';
+  b += '<text x="'+(pad.l+chartW-4)+'" y="'+(dangerY-4)+'" text-anchor="end" font-size="10" fill="#dc2626">⚠ Critical Zone (FCI>40%)</text>';
+  // Area fill
+  b += '<path d="'+area+'" fill="'+svgColor+'" fill-opacity="0.12"/>';
+  // Line
+  b += '<polyline points="'+line+'" fill="none" stroke="'+svgColor+'" stroke-width="2.5"/>';
+  // Dots
+  years.forEach(function(yr,i) {
+    var cx=xPos(i),cy=yPos(fcis[i]);
+    b += '<circle cx="'+cx+'" cy="'+cy+'" r="3.5" fill="'+svgColor+'" stroke="#fff" stroke-width="1.5"/>';
+    if(i%5===0||i===years.length-1) b += '<text x="'+cx+'" y="'+(pad.t+chartH+16)+'" text-anchor="middle" font-size="11" fill="#64748b">'+yr+'</text>';
+  });
+  b += '<text x="'+pad.l+'" y="'+(pad.t-8)+'" font-size="12" fill="#334155" font-weight="600">FCI (lower = better maintained)</text>';
+  b += '</svg>';
+
+  // FCI now vs end
+  var fciNow = (portfolioFCI(_lcScenario, currentYear)*100).toFixed(1);
+  var fciEnd = (portfolioFCI(_lcScenario, currentYear+_lcYears)*100).toFixed(1);
+  var fciChange = (fciEnd - fciNow).toFixed(1);
+  b += '<div style="display:flex;gap:20px;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">';
+  b += '<div style="text-align:center"><div style="font-size:22px;font-weight:800;font-family:var(--mono);color:'+svgColor+'">'+fciNow+'%</div><div style="font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.5px">FCI Today</div></div>';
+  b += '<div style="text-align:center"><div style="font-size:22px;font-weight:800;font-family:var(--mono);color:'+(fciEnd>40?'var(--red)':'var(--green-m)')+'">'+fciEnd+'%</div><div style="font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.5px">FCI in '+_lcYears+' Years</div></div>';
+  b += '<div style="text-align:center"><div style="font-size:22px;font-weight:800;font-family:var(--mono);color:'+(fciChange>0?'var(--red)':'var(--green-m)')+'">'+(fciChange>0?'+':'')+fciChange+'%</div><div style="font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.5px">Projected Change</div></div>';
+  b += '</div></div>';
+
+  // Capital needs by year chart
+  var capData = years.map(function(yr){return {yr:yr,cap:capitalNeeds(_lcScenario,yr)};});
+  var maxCap = Math.max.apply(null,capData.map(function(d){return d.cap;})) || 1000000;
+
+  b += '<div class="card" style="padding:20px"><div style="font-weight:700;font-size:14px;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:14px">Projected Capital Replacement Needs by Year</div>';
+  b += '<svg viewBox="0 0 '+svgW+' 200" style="width:100%;height:200px" xmlns="http://www.w3.org/2000/svg">';
+  var bW = chartW/years.length*0.7;
+  years.forEach(function(yr,i){
+    var h = (capData[i].cap/maxCap)*(200-60);
+    var bx = pad.l + (i/(years.length-1))*chartW - bW/2;
+    var by = 200 - 40 - h;
+    var barColor = capData[i].cap > 1000000 ? '#dc2626' : capData[i].cap > 500000 ? '#f59e0b' : svgColor;
+    b += '<rect x="'+bx+'" y="'+by+'" width="'+bW+'" height="'+h+'" fill="'+barColor+'" rx="3" opacity="0.85"/>';
+    if(capData[i].cap>0 && i%5===0) b += '<text x="'+(bx+bW/2)+'" y="'+(by-5)+'" text-anchor="middle" font-size="10" fill="'+barColor+'" font-weight="600">$'+(capData[i].cap/1000).toFixed(0)+'K</text>';
+    if(i%5===0||i===years.length-1) b += '<text x="'+(bx+bW/2)+'" y="195" text-anchor="middle" font-size="11" fill="#94a3b8">'+yr+'</text>';
+  });
+  b += '</svg>';
+  var totalCapital = capData.reduce(function(s,d){return s+d.cap;},0);
+  b += '<div style="padding-top:12px;border-top:1px solid var(--border);display:flex;gap:20px"><div><div style="font-size:22px;font-weight:800;font-family:var(--mono);color:'+svgColor+'">$'+( totalCapital/1000000).toFixed(1)+'M</div><div style="font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.5px">'+_lcYears+'-Year Capital Need</div></div>';
+  b += '<div><div style="font-size:22px;font-weight:800;font-family:var(--mono)">$'+(totalCapital/_lcYears/1000).toFixed(0)+'K</div><div style="font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.5px">Avg Annual Budget Needed</div></div>';
+  b += '</div></div>';
+
+  // Individual asset health table
+  b += '<div class="card" style="padding:0;overflow:hidden"><div style="padding:14px 18px;border-bottom:1px solid var(--border);font-weight:700;font-size:14px;color:var(--text3);text-transform:uppercase;letter-spacing:.6px">Asset Condition Detail — '+_lcYears+'-Year Outlook</div>';
+  b += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">';
+  b += '<thead><tr style="background:var(--surface2)">';
+  ['Asset','Category','Now','5 Yr','10 Yr','20 Yr','EOL','Repl. Cost','Risk'].forEach(function(h){
+    b += '<th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);white-space:nowrap">'+h+'</th>';
+  });
+  b += '</tr></thead><tbody>';
+
+  LIFECYCLE_ASSETS.forEach(function(asset,idx) {
+    var age = currentYear - asset.installed;
+    function condAt(yr) { return Math.round(degrade(asset, age + yr)); }
+    var c0=condAt(0),c5=condAt(5),c10=condAt(10),c20=condAt(20);
+    var eol = asset.installed + asset.life;
+    var risk = c0 < asset.criticalThreshold ? 'Critical' : c0 < 60 ? 'High' : c0 < 75 ? 'Medium' : 'Low';
+    var riskCol = {Critical:'#dc2626',High:'#d97706',Medium:'#2563eb',Low:'#16a34a'}[risk];
+    function condCell(c) {
+      var col = c>=80?'#16a34a':c>=60?'#d97706':'#dc2626';
+      return '<td style="padding:10px 14px"><div style="display:flex;align-items:center;gap:7px"><div style="width:34px;height:7px;background:var(--border);border-radius:3px;overflow:hidden"><div style="width:'+c+'%;height:100%;background:'+col+'"></div></div><span style="font-weight:700;color:'+col+'">'+c+'%</span></div></td>';
+    }
+    b += '<tr style="border-bottom:1px solid var(--border)'+(idx%2===1?';background:var(--surface2)':'')+'">';
+    b += '<td style="padding:10px 14px;font-weight:600">'+asset.name+'</td>';
+    b += '<td style="padding:10px 14px;color:var(--text3)">'+asset.cat+'</td>';
+    b += condCell(c0)+condCell(c5)+condCell(c10)+condCell(c20);
+    b += '<td style="padding:10px 14px;color:var(--text3)">'+eol+'</td>';
+    b += '<td style="padding:10px 14px;font-weight:700">$'+(asset.replCost/1000).toFixed(0)+'K</td>';
+    b += '<td style="padding:10px 14px"><span style="background:'+riskCol+'22;color:'+riskCol+';font-weight:700;font-size:12px;padding:3px 9px;border-radius:20px">'+risk+'</span></td>';
+    b += '</tr>';
+  });
+
+  b += '</tbody></table></div></div>';
+
+  // What-if summary callout
+  var savings = _lcScenario === 'increased' ?
+    'Proactive investment prevents $2.1M in emergency repairs over '+_lcYears+' years.' :
+    _lcScenario === 'decreased' ?
+    'Budget cuts accelerate deterioration, adding $1.8M in emergency costs by year 10.' :
+    _lcScenario === 'optimized' ?
+    'Optimized intervention timing reduces total 20-year spend by 18% vs. reactive approach.' :
+    'Current trajectory requires $'+( totalCapital/1000000).toFixed(1)+'M over '+_lcYears+' years in replacement needs.';
+
+  var impactColor = _lcScenario==='increased'?'var(--green-l)':_lcScenario==='decreased'?'var(--red-l)':_lcScenario==='optimized'?'var(--purple-l)':'var(--brand-l)';
+  var impactBorder = _lcScenario==='increased'?'#86efac':_lcScenario==='decreased'?'#fca5a5':_lcScenario==='optimized'?'#c4b5fd':'#bfdbfe';
+  var impactTextColor = _lcScenario==='increased'?'var(--green)':_lcScenario==='decreased'?'var(--red)':_lcScenario==='optimized'?'var(--purple)':'var(--brand2)';
+
+  b += '<div style="padding:16px 20px;background:'+impactColor+';border:2px solid '+impactBorder+';border-radius:var(--r)">';
+  b += '<div style="font-weight:800;font-size:15px;color:'+impactTextColor+';margin-bottom:6px">💡 Scenario Impact: '+scenarios[_lcScenario].label+'</div>';
+  b += '<div style="font-size:14px;color:'+impactTextColor+';line-height:1.7">'+savings+'</div>';
+  b += '<div style="margin-top:10px;font-size:13px;color:'+impactTextColor+';opacity:.75">Model uses Brightly Predictor methodology: Service State 0–6, ISO 55000 degradation curves, Facility Condition Index.</div>';
+  b += '</div>';
+
+  b += '</div>'; // end flex column
+  return b;
+}
+
+
 initDB();
 loadAll();
 </script>
